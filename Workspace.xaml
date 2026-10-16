@@ -1,6 +1,6 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="不问凡尘 · AI 编辑器 0.3.1" Width="1240" Height="840" MinWidth="980" MinHeight="660"
+        Title="不问凡尘 · AI 编辑器 0.4.0" Width="1240" Height="840" MinWidth="980" MinHeight="660"
         WindowStartupLocation="CenterScreen" Background="#FFFFFF" Foreground="#25292D"
         FontFamily="Microsoft YaHei UI" FontSize="13" UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType">
@@ -48,7 +48,7 @@
   <Grid.RowDefinitions><RowDefinition Height="54"/><RowDefinition Height="*"/><RowDefinition Height="78"/></Grid.RowDefinitions>
   <Border Grid.Row="0" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="22,0">
    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-    <StackPanel Orientation="Horizontal"><TextBlock Text="不问凡尘" FontWeight="SemiBold" FontSize="17"/><TextBlock Text=" /  AI 编辑器" Foreground="{StaticResource Secondary}" FontSize="14"/><TextBlock Text="0.3.1" Margin="14,0,0,0" Style="{StaticResource Subtle}"/></StackPanel>
+    <StackPanel Orientation="Horizontal"><TextBlock Text="不问凡尘" FontWeight="SemiBold" FontSize="17"/><TextBlock Text=" /  AI 编辑器" Foreground="{StaticResource Secondary}" FontSize="14"/><TextBlock Text="0.4.0" Margin="14,0,0,0" Style="{StaticResource Subtle}"/></StackPanel>
     <TextBlock x:Name="RuntimeState" Grid.Column="1" Style="{StaticResource Subtle}" Text="读取游戏状态…"/>
    </Grid>
   </Border>
@@ -85,7 +85,7 @@
        </StackPanel>
       </Grid>
       <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Margin="0,27,0,0" Padding="0,0,0,13"><TextBlock Text="保存后如何生效" FontWeight="SemiBold"/></Border>
-      <TextBlock Text="退出游戏 → 保存并启用 → 重新启动游戏" Margin="0,18,0,0"/>
+      <TextBlock Text="退出游戏 → 保存游戏补丁 → 重新启动游戏" Margin="0,18,0,0"/>
       <TextBlock Text="仅返回主菜单不会重新载入配置。此设置也用于部分记忆摘要请求；不会改变模型的生成速度。" Margin="0,9,0,0" Style="{StaticResource Subtle}"/>
      </StackPanel>
     </ScrollViewer>
@@ -156,17 +156,17 @@
     </ScrollViewer>
     <ScrollViewer x:Name="RoadmapPage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
      <StackPanel Margin="30,26,36,24"><TextBlock Text="后续功能" Style="{StaticResource SectionTitle}"/><TextBlock Text="以下模块暂未开放，不会修改游戏数据。" Foreground="{StaticResource Secondary}"/>
-      <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="0,20"><StackPanel><TextBlock Text="本地 AI 中转与提示词检查器" FontWeight="SemiBold"/><TextBlock Text="查看游戏发出的完整请求，验证提示词组合。" Margin="0,7,0,0" Foreground="{StaticResource Secondary}"/></StackPanel></Border>
-      <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="0,20"><StackPanel><TextBlock Text="世界书、记忆与对话试验台" FontWeight="SemiBold"/><TextBlock Text="按场景加入设定，管理记忆，比较不同预设的回复。" Margin="0,7,0,0" Foreground="{StaticResource Secondary}"/></StackPanel></Border>
+      <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="0,20"><StackPanel><TextBlock Text="模型参数与角色卡交换" FontWeight="SemiBold"/><TextBlock Text="调整模型采样参数；逐项导入、导出外部角色卡字段。" Margin="0,7,0,0" Foreground="{StaticResource Secondary}"/></StackPanel></Border>
+      <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="0,20"><StackPanel><TextBlock Text="记忆管理与对话试验台" FontWeight="SemiBold"/><TextBlock Text="管理记忆，并比较不同人物方案的回复。" Margin="0,7,0,0" Foreground="{StaticResource Secondary}"/></StackPanel></Border>
       <TextBlock Text="版本通过数据与游戏内验证后，再逐项开放。" Margin="0,24,0,0" Style="{StaticResource Subtle}"/>
      </StackPanel>
     </ScrollViewer>
    </Grid>
   </Grid>
-  <Border Grid.Row="2" Background="#F8F9F9" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="22,12">
+  <Border x:Name="GameFooter" Grid.Row="2" Background="#F8F9F9" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="22,12">
    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
     <StackPanel VerticalAlignment="Center"><StackPanel Orientation="Horizontal"><TextBlock x:Name="DraftStatus" Text="没有未保存的修改" FontWeight="SemiBold"/><Button x:Name="ReviewChanges" Content="查看更改" Style="{StaticResource Link}" Margin="12,0,0,0"/></StackPanel><TextBlock x:Name="ActionHint" Text="修改后保存，重新启动游戏生效。" Style="{StaticResource Subtle}" Margin="0,3,18,0"/></StackPanel>
-    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"><Button x:Name="DiscardChanges" Content="放弃更改" Margin="0,0,10,0"/><Button x:Name="SaveChanges" Content="保存并启用" Style="{StaticResource Primary}" MinWidth="130"/></StackPanel>
+    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"><Button x:Name="DiscardChanges" Content="放弃更改" Margin="0,0,10,0"/><Button x:Name="SaveChanges" Content="保存游戏补丁" Style="{StaticResource Primary}" MinWidth="130"/></StackPanel>
    </Grid>
   </Border>
  </Grid>

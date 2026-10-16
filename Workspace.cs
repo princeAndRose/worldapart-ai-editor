@@ -15,8 +15,8 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Win32;
 [assembly: AssemblyTitle("不问凡尘 AI 编辑器")]
-[assembly: AssemblyVersion("0.3.1.0")]
-[assembly: AssemblyFileVersion("0.3.1.0")]
+[assembly: AssemblyVersion("0.4.0.0")]
+[assembly: AssemblyFileVersion("0.4.0.0")]
 namespace WorldApartAI {
  public sealed class NpcRow : INotifyPropertyChanged {
   public Npc Npc; public ImageSource Portrait{get{return Portraits.Get(Npc.Portrait);}} public string Initial{get{return String.IsNullOrEmpty(Npc.Name)?"人":Npc.Name.Substring(0,1);}} public string Name{get{return Npc.Name;}}public string Subtitle{get{return (String.IsNullOrWhiteSpace(Npc.Title)?"无称号":Npc.Title)+"  ·  "+Npc.Id;}}
@@ -51,7 +51,7 @@ namespace WorldApartAI {
    On("RestoreNpc",delegate{if(current!=null){SetNpcValue(NpcValue(true));FillNpc();message="已在草稿中恢复此字段原版，保存后生效。";Refresh();}});
    On("UndoNpc",delegate{if(current!=null){SetNpcValue(SavedNpcValue());FillNpc();Refresh();}});
    On("SaveChanges",Save);On("ReviewChanges",Review);On("DiscardChanges",Discard);On("ChooseGame",ChooseGame);On("OpenMod",delegate{OpenFolder(store.Root);});On("OpenBackup",delegate{OpenFolder(Path.Combine(store.Root,"editor-backups"));});On("ExportDraft",Export);On("DisableMod",Disable);
-   DetectGame();InitializeExtended();Filter();Refresh();timer=new DispatcherTimer{Interval=TimeSpan.FromSeconds(2)};timer.Tick+=delegate{Refresh();};timer.Start();
+   DetectGame();InitializeExtended();InitializeStudio(testMode);Filter();Refresh();timer=new DispatcherTimer{Interval=TimeSpan.FromSeconds(2)};timer.Tick+=delegate{Refresh();RefreshStudio();};timer.Start();
    window.Closed+=delegate{timer.Stop();};
    window.Closing+=delegate(object sender,CancelEventArgs e){if(draft.Changes().Count>0&&MessageBox.Show(window,"还有未保存的更改。放弃这些更改并退出？","未保存的更改",MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes)e.Cancel=true;};
    window.PreviewKeyDown+=delegate(object sender,KeyEventArgs e){if(Keyboard.Modifiers==ModifierKeys.Control&&e.Key==Key.S){e.Handled=true;if(Button("SaveChanges").IsEnabled)Guard(Save);}if(Keyboard.Modifiers==ModifierKeys.Control&&e.Key==Key.F){e.Handled=true;Get<RadioButton>("NavNpc").IsChecked=true;Get<TextBox>(galleryVisible?"GallerySearch":"NpcSearch").Focus();Get<TextBox>(galleryVisible?"GallerySearch":"NpcSearch").SelectAll();}};
@@ -59,7 +59,7 @@ namespace WorldApartAI {
   public void Run(bool minimumTestSize){if(minimumTestSize){window.Width=window.MinWidth;window.Height=window.MinHeight;}new Application().Run(window);}
   void On(string name,Action action){Button(name).Click+=delegate{Guard(action);};}
   void Guard(Action action){try{action();}catch(Exception e){message=e.Message;Refresh();MessageBox.Show(window,e.Message,"操作未完成",MessageBoxButton.OK,MessageBoxImage.Warning);}}
-  void Show(string name){activePage=name;foreach(var p in pages)p.Value.Visibility=p.Key==name?Visibility.Visible:Visibility.Collapsed;}
+  void Show(string name){activePage=name;((Grid)window.Content).RowDefinitions[2].Height=new GridLength(name=="Studio"?0:78);Get<FrameworkElement>("GameFooter").Visibility=name=="Studio"?Visibility.Collapsed:Visibility.Visible;foreach(var p in pages)p.Value.Visibility=p.Key==name?Visibility.Visible:Visibility.Collapsed;}
   string Lang(){return new[]{"zh-Hans","zh-Hant","en-US"}[Math.Max(0,Get<ComboBox>("Language").SelectedIndex)];}
   void SetTimeout(int seconds){Get<TextBox>("TimeoutInput").Text=seconds.ToString();draft.SetTimeout(seconds.ToString());Refresh();}
   void Filter(){
@@ -77,10 +77,10 @@ namespace WorldApartAI {
    gameRunning=Running();prefError=null;try{enabled=store.IsEnabled();}catch(Exception e){prefError=e.Message;enabled=false;}
    Text("RuntimeState").Text=gameRunning?"游戏运行中 · 退出后可保存":"游戏未运行";
    Text("ModState").Text=prefError!=null?"无法读取配置状态":enabled?"配置已启用":"配置未启用";
-   Text("DraftStatus").Text=changes.Count==0?"没有未保存的修改":"待保存 "+changes.Count+" 项更改";
+   Text("DraftStatus").Text=changes.Count==0?"游戏补丁 · 没有未保存修改":"游戏补丁草稿 · "+changes.Count+" 项更改";
    Button("ReviewChanges").IsEnabled=changes.Count>0;Button("DiscardChanges").IsEnabled=changes.Count>0;
    Button("SaveChanges").IsEnabled=compatible&&!gameRunning&&prefError==null&&draft.TimeoutValid&&(changes.Count>0||!enabled);
-   Button("SaveChanges").Content=changes.Count==0&&!enabled?"启用配置":"保存并启用";Button("DisableMod").IsEnabled=enabled&&!gameRunning&&prefError==null;
+   Button("SaveChanges").Content=changes.Count==0&&!enabled?"启用游戏补丁":"保存游戏补丁";Button("DisableMod").IsEnabled=enabled&&!gameRunning&&prefError==null;
    Text("ActionHint").Text=!draft.TimeoutValid?"回复超时需要填写 30–1800 之间的整数。":!compatible?"游戏目录或版本不匹配，请在“安装与备份”中检查。":prefError!=null?prefError:gameRunning?"请完整退出游戏后保存。当前更改会留在编辑器中。":message.Length>0?message:"修改后保存，重新启动游戏生效。";
    Text("TimeoutError").Visibility=draft.TimeoutValid?Visibility.Collapsed:Visibility.Visible;Text("TimeoutError").Text="请输入 30–1800 之间的整数。";
    int seconds;Text("TimeoutDuration").Text=Int32.TryParse(draft.TimeoutText,out seconds)&&draft.TimeoutValid?(seconds/60>0?seconds/60+" 分钟"+(seconds%60>0?" "+seconds%60+" 秒":""):seconds+" 秒"):"";
@@ -147,7 +147,7 @@ namespace WorldApartAI {
   [STAThread]static void Main(string[] args){
    try{
     Catalog c;using(var reader=new StreamReader(Assembly.GetExecutingAssembly().GetManifestResourceStream("AIEditor.Catalog"),Encoding.UTF8))c=Json.Read<Catalog>(reader.ReadToEnd());
-    if(args.Length==2&&args[0]=="--self-test"){Tests.Run(args[1],c);DraftTests.Run(args[1],c);ExtendedTests.Run(args[1],c);return;}
+    if(args.Length==2&&args[0]=="--self-test"){Tests.Run(args[1],c);DraftTests.Run(args[1],c);ExtendedTests.Run(args[1],c);StudioTests.Run(args[1],c);return;}
     if(args.Length==2&&args[0]=="--render-test"){new Workspace(c,true).RenderTests(args[1]);return;}
     new Workspace(c,args.Contains("--ui-test")).Run(args.Contains("--ui-test")&&args.Contains("--ui-test-min"));
    }catch(Exception e){

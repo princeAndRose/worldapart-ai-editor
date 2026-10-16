@@ -6,6 +6,10 @@
 !Extended.cs
 !Workspace.cs
 !WorkspaceExtended.cs
+!WorkspaceStudio.cs
+!StudioData.cs
+!ProxyServer.cs
+!StudioTests.cs
 !Workspace.xaml
 !DraftState.cs
 !Tests.cs
