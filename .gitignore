@@ -1,0 +1,31 @@
+# Public source allowlist. Game resources, user data, build outputs and local
+# investigation files are intentionally excluded, including future additions.
+*
+!.gitignore
+!Core.cs
+!Extended.cs
+!Workspace.cs
+!WorkspaceExtended.cs
+!Workspace.xaml
+!DraftState.cs
+!Tests.cs
+!DraftTests.cs
+!ExtendedTests.cs
+!RenderTests.cs
+!build.ps1
+!build-catalog.py
+!build-extended.py
+!extract-tables.py
+!requirements-dev.txt
+!README.md
+!DEVELOPMENT.md
+!ROADMAP.md
+!CHANGELOG.md
+!LICENSE
+!assets/
+assets/*
+!assets/workshop-cover.jpg
+!assets/README.md
+!docs/
+docs/*
+!docs/compatibility.md

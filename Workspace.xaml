@@ -1,0 +1,175 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="不问凡尘 · AI 编辑器 0.3.1" Width="1240" Height="840" MinWidth="980" MinHeight="660"
+        WindowStartupLocation="CenterScreen" Background="#FFFFFF" Foreground="#25292D"
+        FontFamily="Microsoft YaHei UI" FontSize="13" UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType">
+ <Window.Resources>
+  <SolidColorBrush x:Key="Secondary" Color="#62686F"/>
+  <SolidColorBrush x:Key="Line" Color="#DDE0E2"/>
+  <Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
+  <Style TargetType="Button">
+   <Setter Property="Padding" Value="13,6"/><Setter Property="MinHeight" Value="32"/><Setter Property="Background" Value="#FFFFFF"/><Setter Property="Foreground" Value="#25292D"/><Setter Property="BorderBrush" Value="#C8CDD1"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Cursor" Value="Hand"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+    <Border x:Name="Edge" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3" Padding="{TemplateBinding Padding}">
+     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    </Border>
+    <ControlTemplate.Triggers>
+     <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Edge" Property="BorderBrush" Value="#59636D"/><Setter TargetName="Edge" Property="Opacity" Value="0.88"/></Trigger>
+     <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Edge" Property="BorderBrush" Value="#176BC2"/><Setter TargetName="Edge" Property="BorderThickness" Value="2"/></Trigger>
+     <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Edge" Property="Opacity" Value="0.40"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
+    </ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="Primary" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="Background" Value="#303A43"/><Setter Property="Foreground" Value="White"/><Setter Property="BorderBrush" Value="#303A43"/></Style>
+  <Style x:Key="Link" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Foreground" Value="#235D91"/><Setter Property="Padding" Value="4,3"/></Style>
+  <Style TargetType="TextBox"><Setter Property="Padding" Value="9,7"/><Setter Property="BorderBrush" Value="#C6CCD1"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Background" Value="White"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="SelectionBrush" Value="#C5DDF2"/><Setter Property="Foreground" Value="#25292D"/></Style>
+  <Style TargetType="ComboBox"><Setter Property="MinHeight" Value="32"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="Padding" Value="8,4"/></Style>
+  <Style x:Key="SectionTitle" TargetType="TextBlock"><Setter Property="FontSize" Value="20"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Margin" Value="0,0,0,8"/></Style>
+  <Style x:Key="Subtle" TargetType="TextBlock"><Setter Property="Foreground" Value="{StaticResource Secondary}"/><Setter Property="FontSize" Value="12"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
+  <Style TargetType="RadioButton" x:Key="Nav">
+   <Setter Property="Margin" Value="8,2"/><Setter Property="Padding" Value="14,10"/><Setter Property="Cursor" Value="Hand"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RadioButton"><Border x:Name="NavBg" Background="Transparent" Padding="{TemplateBinding Padding}" BorderThickness="3,0,0,0" BorderBrush="Transparent"><ContentPresenter/></Border><ControlTemplate.Triggers>
+    <Trigger Property="IsChecked" Value="True"><Setter TargetName="NavBg" Property="Background" Value="#E7E9EA"/><Setter TargetName="NavBg" Property="BorderBrush" Value="#776956"/><Setter Property="FontWeight" Value="SemiBold"/></Trigger>
+    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="NavBg" Property="Background" Value="#ECEEEF"/></Trigger>
+    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="NavBg" Property="BorderBrush" Value="#176BC2"/></Trigger>
+   </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style TargetType="ListBoxItem">
+   <Setter Property="Padding" Value="12,10"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="BorderThickness" Value="0,0,0,1"/><Setter Property="BorderBrush" Value="#ECEEEF"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><Border x:Name="RowBg" Background="White" Padding="{TemplateBinding Padding}" BorderThickness="{TemplateBinding BorderThickness}" BorderBrush="{TemplateBinding BorderBrush}"><ContentPresenter/></Border><ControlTemplate.Triggers>
+    <Trigger Property="IsSelected" Value="True"><Setter TargetName="RowBg" Property="Background" Value="#E7EEF4"/></Trigger>
+    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="RowBg" Property="Background" Value="#EFF3F6"/></Trigger>
+    <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="RowBg" Property="BorderBrush" Value="#176BC2"/><Setter TargetName="RowBg" Property="BorderThickness" Value="1"/></Trigger>
+   </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+  </Style>
+ </Window.Resources>
+ <Grid Background="White">
+  <Grid.RowDefinitions><RowDefinition Height="54"/><RowDefinition Height="*"/><RowDefinition Height="78"/></Grid.RowDefinitions>
+  <Border Grid.Row="0" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="22,0">
+   <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+    <StackPanel Orientation="Horizontal"><TextBlock Text="不问凡尘" FontWeight="SemiBold" FontSize="17"/><TextBlock Text=" /  AI 编辑器" Foreground="{StaticResource Secondary}" FontSize="14"/><TextBlock Text="0.3.1" Margin="14,0,0,0" Style="{StaticResource Subtle}"/></StackPanel>
+    <TextBlock x:Name="RuntimeState" Grid.Column="1" Style="{StaticResource Subtle}" Text="读取游戏状态…"/>
+   </Grid>
+  </Border>
+  <Grid Grid.Row="1">
+   <Grid.ColumnDefinitions><ColumnDefinition Width="176"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+   <Border Background="#F4F5F5" BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
+    <Grid><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+     <StackPanel Margin="0,18,0,0">
+      <TextBlock Text="编辑" Margin="25,0,0,10" Style="{StaticResource Subtle}"/>
+      <RadioButton x:Name="NavRequests" GroupName="Pages" Style="{StaticResource Nav}" Content="回复设置" IsChecked="True"/>
+      <RadioButton x:Name="NavNpc" GroupName="Pages" Style="{StaticResource Nav}" Content="人物"/>
+      <RadioButton x:Name="NavPrompts" GroupName="Pages" Style="{StaticResource Nav}" Content="全局提示词"/>
+      <TextBlock Text="工具" Margin="25,28,0,10" Style="{StaticResource Subtle}"/>
+      <RadioButton x:Name="NavSettings" GroupName="Pages" Style="{StaticResource Nav}" Content="安装与备份"/>
+      <RadioButton x:Name="NavRoadmap" GroupName="Pages" Style="{StaticResource Nav}" Content="后续功能"/>
+     </StackPanel>
+     <StackPanel Grid.Row="1" Margin="25,16,14,22"><TextBlock x:Name="ModState" Text="配置状态" FontSize="12"/><TextBlock Text="本机配置 · 重启游戏后生效" Margin="0,5,0,0" Style="{StaticResource Subtle}"/></StackPanel>
+    </Grid>
+   </Border>
+   <Grid Grid.Column="1">
+    <ScrollViewer x:Name="RequestsPage" VerticalScrollBarVisibility="Auto">
+     <StackPanel Margin="30,26,36,24">
+      <TextBlock Text="回复设置" Style="{StaticResource SectionTitle}"/>
+      <TextBlock Text="设置游戏等待 AI 回复的最长时间。" Foreground="{StaticResource Secondary}"/>
+      <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Margin="0,25,0,0" Padding="0,0,0,13"><TextBlock Text="连接" FontWeight="SemiBold"/></Border>
+      <Grid Margin="0,22,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="155"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+       <StackPanel><TextBlock Text="回复超时" FontWeight="SemiBold"/><TextBlock Text="原版：30 秒" Margin="0,6,0,0" Style="{StaticResource Subtle}"/></StackPanel>
+       <StackPanel Grid.Column="1">
+        <StackPanel Orientation="Horizontal"><TextBox x:Name="TimeoutInput" Width="112" FontSize="16" MaxLength="5" AutomationProperties.Name="回复超时秒数"/><TextBlock Text="秒" Margin="10,0,0,0"/><TextBlock x:Name="TimeoutDuration" Margin="16,0,0,0" Style="{StaticResource Subtle}"/></StackPanel>
+        <TextBlock x:Name="TimeoutError" Foreground="#A43128" Margin="0,6,0,0" Visibility="Collapsed"/>
+        <StackPanel Orientation="Horizontal" Margin="0,12,0,0"><Button x:Name="Preset180" Content="3 分钟" Margin="0,0,8,0"/><Button x:Name="Preset300" Content="5 分钟" Margin="0,0,8,0"/><Button x:Name="Preset600" Content="10 分钟" Margin="0,0,8,0"/><Button x:Name="TimeoutRestore" Style="{StaticResource Link}" Content="恢复 30 秒"/></StackPanel>
+        <TextBlock Text="范围 30–1800 秒。本地模型需要较长思考时间时，可以适当增加。" Margin="0,13,0,0" Style="{StaticResource Subtle}"/>
+        <TextBlock TextWrapping="Wrap" Text="游戏内自定义模型若单独设置了大于 0 的超时，会优先使用该值。遇到等待时间不符时，请先检查游戏内 AI 设置。" Margin="0,9,0,0" Style="{StaticResource Subtle}"/>
+       </StackPanel>
+      </Grid>
+      <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Margin="0,27,0,0" Padding="0,0,0,13"><TextBlock Text="保存后如何生效" FontWeight="SemiBold"/></Border>
+      <TextBlock Text="退出游戏 → 保存并启用 → 重新启动游戏" Margin="0,18,0,0"/>
+      <TextBlock Text="仅返回主菜单不会重新载入配置。此设置也用于部分记忆摘要请求；不会改变模型的生成速度。" Margin="0,9,0,0" Style="{StaticResource Subtle}"/>
+     </StackPanel>
+    </ScrollViewer>
+    <Grid x:Name="NpcPage" Visibility="Collapsed">
+     <Grid x:Name="NpcGallery" Margin="28,24,28,16">
+      <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+      <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="人物库" Style="{StaticResource SectionTitle}"/><TextBlock Text="选择人物，编辑背景、说话方式与关系态度。" Style="{StaticResource Subtle}"/></StackPanel><TextBlock x:Name="GalleryCount" Grid.Column="1" Style="{StaticResource Subtle}"/></Grid>
+      <Grid Grid.Row="1" Margin="0,20,0,16"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="搜索姓名、称号或配置 ID" Style="{StaticResource Subtle}" Margin="0,0,0,5"/><TextBox x:Name="GallerySearch" AutomationProperties.Name="搜索姓名、称号或配置 ID"/></StackPanel><CheckBox x:Name="GalleryOnlyChanged" Grid.Column="1" Content="只看自定义与草稿" VerticalAlignment="Bottom" Margin="18,0,0,0"/></Grid>
+      <ScrollViewer x:Name="GalleryScroll" Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+       <Grid><TextBlock x:Name="GalleryEmpty" Text="没有找到人物。试试姓名、称号或配置 ID，或取消筛选。" Visibility="Collapsed" Margin="8,40"/>
+       <ItemsControl x:Name="GalleryItems"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate><DataTemplate><Button Tag="{Binding}" Width="198" Padding="0" Margin="0,0,14,16" ToolTip="{Binding Subtitle}" AutomationProperties.Name="{Binding}">
+         <Grid Width="196"><Grid.RowDefinitions><RowDefinition Height="154"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+          <Border Background="#EEEBE4"><Grid><StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"><TextBlock Text="{Binding Initial}" FontSize="34" Foreground="#AAA394" HorizontalAlignment="Center"/><TextBlock Text="暂无头像" FontSize="11" Foreground="#8C867A"/></StackPanel><Image Source="{Binding Portrait}" Stretch="Uniform" VerticalAlignment="Bottom"/></Grid></Border>
+          <StackPanel Grid.Row="1" Margin="12,10,12,11"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/><TextBlock Grid.Column="1" Text="{Binding Badge}" FontSize="11" Foreground="#735523" Margin="4,0,0,0"/></Grid><TextBlock Text="{Binding Subtitle}" FontSize="11" Foreground="#62686F" Margin="0,5,0,0"/></StackPanel>
+         </Grid>
+        </Button></DataTemplate></ItemsControl.ItemTemplate>
+       </ItemsControl></Grid>
+      </ScrollViewer>
+      <Grid Grid.Row="3" Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="头像可能共用，请结合称号和 ID 区分人物。" Style="{StaticResource Subtle}"/><StackPanel Grid.Column="1" Orientation="Horizontal"><Button x:Name="GalleryPrev" Content="上一页"/><TextBlock x:Name="GalleryPageNumber" Margin="14,0" MinWidth="56" TextAlignment="Center" TextWrapping="NoWrap"/><Button x:Name="GalleryNext" Content="下一页"/></StackPanel></Grid>
+     </Grid>
+    <Grid x:Name="NpcEditorPane" Visibility="Collapsed">
+     <Grid.ColumnDefinitions><ColumnDefinition Width="272"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+     <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
+      <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="32"/></Grid.RowDefinitions>
+       <StackPanel Margin="16,20,16,12"><Button x:Name="BackGallery" Content="‹ 返回人物库" Style="{StaticResource Link}" HorizontalAlignment="Left" Margin="-4,0,0,12"/><TextBlock Text="名称、称号或配置 ID" Style="{StaticResource Subtle}" Margin="0,0,0,5"/><TextBox x:Name="NpcSearch" AutomationProperties.Name="搜索 NPC"/><CheckBox x:Name="OnlyChanged" Content="只看自定义与草稿" Margin="0,10,0,0" FontSize="12"/></StackPanel>
+       <ListBox x:Name="NpcList" Grid.Row="1" BorderThickness="0" Background="White" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+        <ListBox.ItemTemplate><DataTemplate><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="48"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+         <Border Background="#EEECE6" Width="40" Height="48"><Grid><TextBlock Text="{Binding Initial}" HorizontalAlignment="Center" Foreground="#9B9588" FontSize="18"/><Image Source="{Binding Portrait}" Stretch="Uniform" VerticalAlignment="Bottom"/></Grid></Border>
+         <StackPanel Grid.Column="1"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/><TextBlock Grid.Column="1" Text="{Binding Badge}" Foreground="#735523" FontSize="11"/></Grid><TextBlock Text="{Binding Subtitle}" FontSize="11" Foreground="#62686F" Margin="0,5,0,0"/></StackPanel>
+        </Grid></DataTemplate></ListBox.ItemTemplate>
+       </ListBox>
+       <TextBlock x:Name="NpcCount" Grid.Row="2" Margin="16,0" Style="{StaticResource Subtle}"/>
+      </Grid>
+     </Border>
+     <Grid x:Name="NpcDetailGrid" Grid.Column="1" Margin="23,23,25,18">
+      <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+      <StackPanel><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Image x:Name="DetailPortrait" Height="65" Width="55" HorizontalAlignment="Left"/><StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock x:Name="NpcName" Text="选择 NPC" Style="{StaticResource SectionTitle}"/><TextBlock x:Name="NpcIdentity" Foreground="{StaticResource Secondary}"/></StackPanel></Grid><TextBlock x:Name="FieldHelp" Text="按配置 ID 修改。" FontSize="11" Foreground="#755929" Margin="0,9,0,0"/></StackPanel>
+      <Grid Grid.Row="1" Margin="0,19,0,11"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><ComboBox x:Name="NpcField" AutomationProperties.Name="人物编辑字段" Margin="0,0,12,0"/><ComboBox x:Name="Language" Grid.Column="1" Width="136" AutomationProperties.Name="编辑语言"><ComboBoxItem Content="简体中文"/><ComboBoxItem Content="繁体中文"/><ComboBoxItem Content="English"/></ComboBox></Grid>
+      <TextBlock x:Name="NpcDraftState" Grid.Row="2" Text="与原版一致" Margin="0,0,0,8" Style="{StaticResource Subtle}"/>
+      <CheckBox x:Name="UseAttitude" Grid.Row="3" Content="启用这个人物的个人关系态度" VerticalAlignment="Top" Visibility="Collapsed"/><TextBox x:Name="StyleEditor" Grid.Row="3" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top" Padding="12" FontSize="14" MaxLength="8000" AutomationProperties.Name="NPC 说话风格编辑框" MinHeight="90" SpellCheck.IsEnabled="False"/>
+      <Grid Grid.Row="4" Margin="0,9,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel Orientation="Horizontal"><Button x:Name="UndoNpc" Content="撤销此项修改" Style="{StaticResource Link}" Margin="0,0,10,0"/><Button x:Name="RestoreNpc" Content="恢复此字段原版" Style="{StaticResource Link}"/></StackPanel><TextBlock x:Name="CharacterCount" Grid.Column="1" Style="{StaticResource Subtle}"/></Grid>
+      <Expander x:Name="OriginalExpander" Grid.Row="5" Header="原版对照" FontSize="12">
+       <TextBox x:Name="OriginalStyle" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="142" Background="#F5F6F6" Margin="0,8,0,0" AutomationProperties.Name="原版说话风格"/>
+      </Expander>
+     </Grid>
+    </Grid>
+    </Grid>
+    <Grid x:Name="PromptsPage" Visibility="Collapsed" Margin="30,24,30,20">
+     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+     <StackPanel><TextBlock Text="全局提示词" Style="{StaticResource SectionTitle}"/><TextBlock Text="修改共用模板，会影响使用该模板的所有人物。" Style="{StaticResource Subtle}"/></StackPanel>
+     <Grid Grid.Row="1" Margin="0,20,0,12"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="150"/></Grid.ColumnDefinitions><ComboBox x:Name="PromptSelect" Margin="0,0,14,0" AutomationProperties.Name="全局提示词模板"/><ComboBox x:Name="PromptLanguage" Grid.Column="1" AutomationProperties.Name="模板语言"><ComboBoxItem Content="简体中文"/><ComboBoxItem Content="繁体中文"/><ComboBoxItem Content="English"/></ComboBox></Grid>
+     <TextBlock x:Name="PromptHint" Grid.Row="2" FontSize="12" Foreground="#755929" Margin="0,0,0,12"/>
+     <TextBox x:Name="PromptEditor" Grid.Row="3" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" VerticalScrollBarVisibility="Auto" MaxLength="24000" Padding="12" FontSize="14" AutomationProperties.Name="全局提示词编辑框"/>
+     <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,9,0,8"><Button x:Name="UndoPrompt" Content="撤销此项修改" Style="{StaticResource Link}"/><Button x:Name="RestorePrompt" Content="恢复此模板原版" Style="{StaticResource Link}" Margin="12,0"/><TextBlock x:Name="PromptState" Style="{StaticResource Subtle}"/></StackPanel>
+     <Expander x:Name="PromptOriginalExpander" Grid.Row="5" Header="原版对照"><TextBox x:Name="PromptOriginal" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="140" Background="#F5F6F6" Margin="0,8,0,0"/></Expander>
+    </Grid>
+    <ScrollViewer x:Name="SettingsPage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+     <StackPanel Margin="30,26,36,24"><TextBlock Text="安装与备份" Style="{StaticResource SectionTitle}"/><TextBlock Text="统一保存超时与 AI 设置；已有超时配置会自动接续。" Foreground="{StaticResource Secondary}"/>
+      <TextBlock Text="游戏目录" FontWeight="SemiBold" Margin="0,26,0,8"/><TextBlock x:Name="GamePath"/><StackPanel Orientation="Horizontal" Margin="0,10,0,0"><Button x:Name="ChooseGame" Content="选择游戏目录" Margin="0,0,12,0"/><TextBlock x:Name="VersionState" Style="{StaticResource Subtle}"/></StackPanel>
+      <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Margin="0,22,0,18"/>
+      <TextBlock Text="补丁与备份" FontWeight="SemiBold" Margin="0,0,0,8"/><TextBlock x:Name="ModPath" FontSize="12"/><StackPanel Orientation="Horizontal" Margin="0,12,0,0"><Button x:Name="OpenMod" Content="打开补丁目录" Margin="0,0,10,0"/><Button x:Name="OpenBackup" Content="打开备份目录"/></StackPanel>
+      <TextBlock Text="每次保存会先备份。发生外部修改冲突时不会覆盖文件，你可以先导出当前草稿。" Style="{StaticResource Subtle}" Margin="0,12,0,0"/>
+      <StackPanel Orientation="Horizontal" Margin="0,12,0,0"><Button x:Name="ImportPreset" Content="导入预设…" Margin="0,0,10,0"/><Button x:Name="ExportPreset" Content="导出预设…" Margin="0,0,10,0"/><Button x:Name="ExportDraft" Content="导出差异草稿…"/></StackPanel><TextBlock Text="预设包含自定义字段与超时值。导入先预览，再合并到草稿；不会立即写入游戏。" Style="{StaticResource Subtle}" Margin="0,10,0,0"/>
+      <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Margin="0,22,0,18"/>
+      <TextBlock Text="停用编辑器配置" FontWeight="SemiBold" Margin="0,0,0,8"/><TextBlock Text="同时停用超时、人物字段和全局提示词覆盖。保留文件和草稿，重新启动游戏后生效。" Foreground="{StaticResource Secondary}" Margin="0,0,0,12"/><Button x:Name="DisableMod" Content="禁用配置" HorizontalAlignment="Left"/>
+     </StackPanel>
+    </ScrollViewer>
+    <ScrollViewer x:Name="RoadmapPage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+     <StackPanel Margin="30,26,36,24"><TextBlock Text="后续功能" Style="{StaticResource SectionTitle}"/><TextBlock Text="以下模块暂未开放，不会修改游戏数据。" Foreground="{StaticResource Secondary}"/>
+      <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="0,20"><StackPanel><TextBlock Text="本地 AI 中转与提示词检查器" FontWeight="SemiBold"/><TextBlock Text="查看游戏发出的完整请求，验证提示词组合。" Margin="0,7,0,0" Foreground="{StaticResource Secondary}"/></StackPanel></Border>
+      <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="0,20"><StackPanel><TextBlock Text="世界书、记忆与对话试验台" FontWeight="SemiBold"/><TextBlock Text="按场景加入设定，管理记忆，比较不同预设的回复。" Margin="0,7,0,0" Foreground="{StaticResource Secondary}"/></StackPanel></Border>
+      <TextBlock Text="版本通过数据与游戏内验证后，再逐项开放。" Margin="0,24,0,0" Style="{StaticResource Subtle}"/>
+     </StackPanel>
+    </ScrollViewer>
+   </Grid>
+  </Grid>
+  <Border Grid.Row="2" Background="#F8F9F9" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="22,12">
+   <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+    <StackPanel VerticalAlignment="Center"><StackPanel Orientation="Horizontal"><TextBlock x:Name="DraftStatus" Text="没有未保存的修改" FontWeight="SemiBold"/><Button x:Name="ReviewChanges" Content="查看更改" Style="{StaticResource Link}" Margin="12,0,0,0"/></StackPanel><TextBlock x:Name="ActionHint" Text="修改后保存，重新启动游戏生效。" Style="{StaticResource Subtle}" Margin="0,3,18,0"/></StackPanel>
+    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"><Button x:Name="DiscardChanges" Content="放弃更改" Margin="0,0,10,0"/><Button x:Name="SaveChanges" Content="保存并启用" Style="{StaticResource Primary}" MinWidth="130"/></StackPanel>
+   </Grid>
+  </Border>
+ </Grid>
+</Window>
+
+
