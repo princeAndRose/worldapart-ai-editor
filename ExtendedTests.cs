@@ -35,7 +35,7 @@ namespace WorldApartAI {
    string before=Json.Write(target.ExportPreset());preset.Values.Add(new PresetValue{Key="prompt/task.chat/zh-Hans",Value="invalid"});Reject(delegate{target.ImportPreset(preset);},"invalid import rejected");Check(before==Json.Write(target.ExportPreset()),"import rollback no partial draft mutation");
    s.Reload();string oldbase=File.ReadAllText(s.PathFor("tables/tbnpcbasecfg.patch.json")),oldprompt=File.ReadAllText(s.PathFor("tables/tbaiprompttemplate.patch.json"));s.SetValue(background,"不得落盘");s.SetValue(prompt,s.Value(prompt,true)+"另一条规则");prefs.FailNext=true;Reject(delegate{s.Save(false);},"rollback extra tables");Check(File.ReadAllText(s.PathFor("tables/tbnpcbasecfg.patch.json"))==oldbase&&File.ReadAllText(s.PathFor("tables/tbaiprompttemplate.patch.json"))==oldprompt,"all tables restored on failure");
    s.Reload();File.AppendAllText(s.PathFor("tables/tbaiprompttemplate.patch.json")," ");Reject(delegate{s.Save(false);},"template table conflict detected");
-   Check(c.Npcs.Count(n=>!String.IsNullOrEmpty(n.Portrait))==1084,"portrait mapping coverage");
+   Check(c.Npcs.Count(n=>!String.IsNullOrEmpty(n.Portrait))==1223,"portrait mapping coverage");
    File.WriteAllText(Path.Combine(folder,"EXTENDED-PASSED.txt"),"PASS: cross-table persistence; relation keys/order; unknown fields/languages/tiers preserved; template variables; all-or-nothing preset import; draft-only import; full customization export; expanded rollback/conflict detection; portrait coverage; restored-draft preset preview; relation restore with unknown language.",Encoding.UTF8);
   }
  }

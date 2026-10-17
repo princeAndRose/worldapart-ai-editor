@@ -15,10 +15,11 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Win32;
 [assembly: AssemblyTitle("不问凡尘 AI 编辑器")]
-[assembly: AssemblyVersion("0.4.0.0")]
-[assembly: AssemblyFileVersion("0.4.0.0")]
+[assembly: AssemblyVersion("0.4.1.0")]
+[assembly: AssemblyFileVersion("0.4.1.0")]
 namespace WorldApartAI {
  public sealed class NpcRow : INotifyPropertyChanged {
+  public string Coverage {get{return Npc.BackgroundOnly?"仅背景":"人设与背景";}}
   public Npc Npc; public ImageSource Portrait{get{return Portraits.Get(Npc.Portrait);}} public string Initial{get{return String.IsNullOrEmpty(Npc.Name)?"人":Npc.Name.Substring(0,1);}} public string Name{get{return Npc.Name;}}public string Subtitle{get{return (String.IsNullOrWhiteSpace(Npc.Title)?"无称号":Npc.Title)+"  ·  "+Npc.Id;}}
   string badge="";public string Badge{get{return badge;}set{if(badge!=value){badge=value;if(PropertyChanged!=null)PropertyChanged(this,new PropertyChangedEventArgs("Badge"));}}}
   public event PropertyChangedEventHandler PropertyChanged;
@@ -50,7 +51,7 @@ namespace WorldApartAI {
    Get<TextBox>("StyleEditor").TextChanged+=delegate{if(!loading&&current!=null){SetNpcValue(Get<TextBox>("StyleEditor").Text);message="";Refresh();}};
    On("RestoreNpc",delegate{if(current!=null){SetNpcValue(NpcValue(true));FillNpc();message="已在草稿中恢复此字段原版，保存后生效。";Refresh();}});
    On("UndoNpc",delegate{if(current!=null){SetNpcValue(SavedNpcValue());FillNpc();Refresh();}});
-   On("SaveChanges",Save);On("ReviewChanges",Review);On("DiscardChanges",Discard);On("ChooseGame",ChooseGame);On("OpenMod",delegate{OpenFolder(store.Root);});On("OpenBackup",delegate{OpenFolder(Path.Combine(store.Root,"editor-backups"));});On("ExportDraft",Export);On("DisableMod",Disable);
+   On("CheckEffect",CheckEffect);On("CheckNpcEffect",CheckEffect);On("SaveChanges",Save);On("ReviewChanges",Review);On("DiscardChanges",Discard);On("ChooseGame",ChooseGame);On("OpenMod",delegate{OpenFolder(store.Root);});On("OpenBackup",delegate{OpenFolder(Path.Combine(store.Root,"editor-backups"));});On("ExportDraft",Export);On("DisableMod",Disable);
    DetectGame();InitializeExtended();InitializeStudio(testMode);Filter();Refresh();timer=new DispatcherTimer{Interval=TimeSpan.FromSeconds(2)};timer.Tick+=delegate{Refresh();RefreshStudio();};timer.Start();
    window.Closed+=delegate{timer.Stop();};
    window.Closing+=delegate(object sender,CancelEventArgs e){if(draft.Changes().Count>0&&MessageBox.Show(window,"还有未保存的更改。放弃这些更改并退出？","未保存的更改",MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes)e.Cancel=true;};
@@ -64,7 +65,7 @@ namespace WorldApartAI {
   void SetTimeout(int seconds){Get<TextBox>("TimeoutInput").Text=seconds.ToString();draft.SetTimeout(seconds.ToString());Refresh();}
   void Filter(){
    int id=current==null?-1:current.Id;string q=Get<TextBox>("NpcSearch").Text.Trim();bool only=Get<CheckBox>("OnlyChanged").IsChecked==true;var changed=new HashSet<int>(draft.Changes().Select(c=>c.NpcId));
-   var filtered=rows.Where(r=>(q.Length==0||r.ToString().IndexOf(q,StringComparison.OrdinalIgnoreCase)>=0)&&(!only||CustomNpc(r.Npc.Id)||changed.Contains(r.Npc.Id))).ToList();
+   var filtered=rows.Where(r=>(q.Length==0||r.ToString().IndexOf(q,StringComparison.OrdinalIgnoreCase)>=0||(r.Npc.SearchNames??"").IndexOf(q,StringComparison.OrdinalIgnoreCase)>=0)&&(!only||CustomNpc(r.Npc.Id)||changed.Contains(r.Npc.Id))).ToList();
    if(q!=lastQuery||only!=lastOnly){galleryPage=0;galleryOffset=0;lastQuery=q;lastOnly=only;}filteredRows=filtered;Get<TextBox>("GallerySearch").Text=q;Get<CheckBox>("GalleryOnlyChanged").IsChecked=only;RenderGallery();
    var list=Get<ListBox>("NpcList");list.ItemsSource=filtered;list.SelectedItem=filtered.FirstOrDefault(r=>r.Npc.Id==id)??filtered.FirstOrDefault();
    Text("NpcCount").Text=filtered.Count+" / "+catalog.Npcs.Count+" 个 NPC 配置";if(filtered.Count==0){current=null;FillNpc();}
@@ -147,7 +148,7 @@ namespace WorldApartAI {
   [STAThread]static void Main(string[] args){
    try{
     Catalog c;using(var reader=new StreamReader(Assembly.GetExecutingAssembly().GetManifestResourceStream("AIEditor.Catalog"),Encoding.UTF8))c=Json.Read<Catalog>(reader.ReadToEnd());
-    if(args.Length==2&&args[0]=="--self-test"){Tests.Run(args[1],c);DraftTests.Run(args[1],c);ExtendedTests.Run(args[1],c);StudioTests.Run(args[1],c);return;}
+    if(args.Length==2&&args[0]=="--self-test"){Tests.Run(args[1],c);DraftTests.Run(args[1],c);ExtendedTests.Run(args[1],c);StudioTests.Run(args[1],c);FeedbackTests.Run(args[1],c);return;}
     if(args.Length==2&&args[0]=="--render-test"){new Workspace(c,true).RenderTests(args[1]);return;}
     new Workspace(c,args.Contains("--ui-test")).Run(args.Contains("--ui-test")&&args.Contains("--ui-test-min"));
    }catch(Exception e){

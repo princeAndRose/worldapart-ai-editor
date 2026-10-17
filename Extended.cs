@@ -90,7 +90,7 @@ namespace WorldApartAI {
   public void ImportPreset(EditorPreset preset){
    if(preset==null||preset.Format!="WorldApart.AI.Editor.Preset"||preset.Version!=1||Catalog.MatchVersion(preset.MetadataHash)==null||preset.Values==null||preset.Values.Count>50000||preset.TimeoutSeconds<30||preset.TimeoutSeconds>1800)throw new InvalidDataException("预设格式、游戏版本或超时值不兼容。");
    var seen=new HashSet<string>();foreach(var v in preset.Values){if(v==null||v.Key==null||v.Value==null||!seen.Add(v.Key))throw new InvalidDataException("预设存在空值或重复字段。");var parts=v.Key.Split('/');int id;
-    if(parts.Length==4&&parts[0]=="npc"&&parts[2]=="speakStyle"&&Int32.TryParse(parts[1],out id)&&npcs.ContainsKey(id)&&new[]{"zh-Hans","zh-Hant","en-US"}.Contains(parts[3])){if(v.Value.Length>8000)throw new InvalidDataException("风格文本过长。");}
+    if(parts.Length==4&&parts[0]=="npc"&&parts[2]=="speakStyle"&&Int32.TryParse(parts[1],out id)&&npcs.ContainsKey(id)&&!npcs[id].BackgroundOnly&&new[]{"zh-Hans","zh-Hant","en-US"}.Contains(parts[3])){if(v.Value.Length>8000)throw new InvalidDataException("风格文本过长。");}
     else{FieldRef f;if(!Fields.TryGetValue(v.Key,out f)||v.Value.Length>24000)throw new InvalidDataException("预设包含不支持的字段。");if(f.Language=="value"&&v.Value!="true"&&v.Value!="false")throw new InvalidDataException("预设开关值不合法。");if(f.NpcId<0&&!Variables(v.Value).SequenceEqual(Variables(f.Original)))throw new InvalidDataException("预设缺少或增加了模板变量："+f.Title);}
    }
    foreach(var v in preset.Values){if(Fields.ContainsKey(v.Key))SetValue(v.Key,v.Value);else{var parts=v.Key.Split('/');SetStyle(Int32.Parse(parts[1]),parts[3],v.Value);}}Seconds=preset.TimeoutSeconds;

@@ -25,7 +25,7 @@ $render = Join-Path $PWD 'render-output'
 Start-Process $editor -ArgumentList ('--render-test "'+$render+'"') -Wait
 ```
 
-数据检查应产生 PASSED.txt、DRAFT-PASSED.txt、EXTENDED-PASSED.txt、STUDIO-PASSED.txt；界面检查产生 UI-PASSED.txt。出现 FAILED.txt 时先查看错误。测试目录请使用新目录，避免把上次结果误认为本次通过。
+数据检查应产生 PASSED.txt、DRAFT-PASSED.txt、EXTENDED-PASSED.txt、STUDIO-PASSED.txt、FEEDBACK-PASSED.txt；界面检查产生 UI-PASSED.txt。出现 FAILED.txt 时先查看错误。测试目录请使用新目录，避免把上次结果误认为本次通过。
 
 `--ui-test` 用 EXE 旁的隔离目录及内存启用记录启动交互测试，不保存到真实游戏 Mod。正式模式写入用户自己的游戏 Mod 目录。
 
@@ -34,6 +34,8 @@ Start-Process $editor -ArgumentList ('--render-test "'+$render+'"') -Wait
 - Core.cs / Extended.cs：参考数据、字段、表补丁、备份与事务保存。
 - StudioData.cs / ProxyServer.cs：人物方案、资料库、条件匹配、受限本地 HTTP 代理与内存请求记录。
 - StudioTests.cs：方案隔离、损坏恢复、规则预算、真实 TCP 转发、鉴权、错误返回、SSE 首块与停止重启测试（不连接外部模型）。
+- Diagnostics.cs：只读生效检查（不读取模型密钥或聊天）。
+- FeedbackTests.cs：仅背景角色、方案/预设范围、保留外部人设和占位 ID 排除检查。
 - DraftState.cs：草稿、更改对照。
 - Workspace.xaml / Workspace*.cs：原生 WPF 界面。
 - *Tests.cs：事务、外部修改冲突、语言保留、预设合并及 WPF 渲染检查。

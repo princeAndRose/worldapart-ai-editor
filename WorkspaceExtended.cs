@@ -28,8 +28,15 @@ namespace WorldApartAI {
    if(field=="hiddenPersona")return "实验：当前版本原生角色未开启隐藏人设；修改文字不会开启或解锁。";
    if(field=="hiddenTrigger")return "实验：当前版本原生角色未开启隐藏人设；修改文字不会开启、解锁或新增游戏事件。";
    if(field=="overDrive")return "实验：尚未确认普通聊天会采用此字段，保存文本不代表对话效果已验证。";
-   if(field.Contains("Attitude")||field.Contains("attitude"))return "需启用个人关系态度，游戏只采用当前关系阶段的文本；不改变好感度或身份。";
-   return "按配置 ID 修改，同配置角色会共用。已有聊天记忆保留。";
+   if(field.StartsWith("daoCompanionAttitudeByIntimacy:"))return "用于已有道侣关系对应的亲密阶段；不改变好感度、身份，也不会解锁事件。";
+   if(field.Contains("Attitude")||field.Contains("attitude"))return "关系态度随游戏当前阶段选用；修改文字不改变好感度或身份。";
+   return "按配置 ID 修改，同配置角色会共用。保存后重启游戏，已有聊天记忆保留。";
+  }
+  static string CoverageHelp(Npc n){
+   if(n==null)return "";
+   if(n.BackgroundOnly)return "仅背景：原表无 AI 人设记录，此版只开放人物背景。";
+   bool dao=n.Fields.Keys.Any(k=>k.StartsWith("daoCompanionAttitudeByIntimacy:"));
+   return "字段按游戏原表列出。"+(dao?"道侣阶段见下拉列表。":"原表未配置道侣阶段 4、5，此版不补建。")+"这不是解锁状态。";
   }
   string CurrentKey(){return current==null?null:Store.NpcKey(current.Id,Field(),Field()=="usePersonalIntimacyAttitude"?"value":Lang());}
   string NpcValue(bool original){return Field()=="speakStyle"?store.Style(current.Id,Lang(),original):store.Value(CurrentKey(),original);}
@@ -57,13 +64,14 @@ namespace WorldApartAI {
    try{
     bool has=current!=null;Text("NpcName").Text=has?current.Name:"没有匹配的 NPC";Text("NpcIdentity").Text=has?(String.IsNullOrEmpty(current.Title)?"无称号":current.Title)+"   /   配置 ID "+current.Id:"调整搜索或取消筛选。";
     Get<Image>("DetailPortrait").Source=has?Portraits.Get(current.Portrait):null;
-    var choices=new List<FieldChoice>{new FieldChoice{Key="speakStyle",Label="说话风格"}};if(has&&current.Fields!=null)choices.AddRange(current.Fields.Keys.Select(k=>new FieldChoice{Key=k,Label=FieldLabel(k)}));
+    var choices=new List<FieldChoice>();if(!has||!current.BackgroundOnly)choices.Add(new FieldChoice{Key="speakStyle",Label="说话风格"});if(has&&current.Fields!=null)choices.AddRange(current.Fields.Keys.Select(k=>new FieldChoice{Key=k,Label=FieldLabel(k)}));
     Get<ComboBox>("NpcField").ItemsSource=choices;Get<ComboBox>("NpcField").SelectedItem=choices.FirstOrDefault(c=>c.Key==field)??choices[0];
     System.Windows.Automation.AutomationProperties.SetName(Get<TextBox>("StyleEditor"),FieldNames.Npc(Field())+"编辑框");System.Windows.Automation.AutomationProperties.SetName(Get<TextBox>("OriginalStyle"),"原版"+FieldNames.Npc(Field()));
     bool toggle=Field()=="usePersonalIntimacyAttitude";Get<TextBox>("StyleEditor").Visibility=toggle?Visibility.Collapsed:Visibility.Visible;Get<CheckBox>("UseAttitude").Visibility=toggle?Visibility.Visible:Visibility.Collapsed;Get<CheckBox>("UseAttitude").IsEnabled=has;
     Get<TextBox>("StyleEditor").IsEnabled=has;Get<TextBox>("StyleEditor").MaxLength=Field()=="speakStyle"?8000:24000;Get<ComboBox>("Language").IsEnabled=has&&!toggle;Get<ComboBox>("NpcField").IsEnabled=has;
     Get<TextBox>("StyleEditor").Text=has?NpcValue(false):"";Get<TextBox>("OriginalStyle").Text=has?NpcValue(true):"";Get<CheckBox>("UseAttitude").IsChecked=has&&toggle&&NpcValue(false)=="true";
-    Text("FieldHelp").Text=FieldEffectHelp(Field());
+    Text("NpcCoverage").Text=CoverageHelp(current);
+    Text("FieldHelp").Text=(has&&!toggle&&String.IsNullOrEmpty(NpcValue(true))?"此字段的原版文本为空。":"")+FieldEffectHelp(Field());
    }finally{loading=false;}Refresh();
   }
   string PromptKey(){var p=Get<ComboBox>("PromptSelect").SelectedItem as PromptTemplate;return p==null?null:Store.PromptKey(p.Key,new[]{"zh-Hans","zh-Hant","en-US"}[Math.Max(0,Get<ComboBox>("PromptLanguage").SelectedIndex)]);}
@@ -77,7 +85,7 @@ namespace WorldApartAI {
    if(changes.Count==0){message="预设与当前草稿一致，无需导入。";Refresh();return;}
    var dialog=new Window{Owner=window,Title="导入预设 · 检查合并内容",Width=780,Height=560,WindowStartupLocation=WindowStartupLocation.CenterOwner,Resources=window.Resources,FontFamily=window.FontFamily};var grid=new Grid{Margin=new Thickness(20)};grid.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});grid.RowDefinitions.Add(new RowDefinition());grid.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});dialog.Content=grid;grid.Children.Add(new TextBlock{Text="以下项目将替换当前草稿；未列出的项目保持不变。导入后仍需保存才会写入游戏。",Margin=new Thickness(0,0,0,15)});
    var text=new TextBox{IsReadOnly=true,AcceptsReturn=true,TextWrapping=TextWrapping.Wrap,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,Text=String.Join("\n\n",changes.Select(c=>c.Title+"\n当前："+c.Before+"\n导入："+c.After))};Grid.SetRow(text,1);grid.Children.Add(text);var buttons=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,Margin=new Thickness(0,12,0,0)};Grid.SetRow(buttons,2);grid.Children.Add(buttons);var cancel=new Button{Content="取消",IsCancel=true,Margin=new Thickness(0,0,12,0)};buttons.Children.Add(cancel);var accept=new Button{Content="合并到草稿"};buttons.Children.Add(accept);cancel.Click+=delegate{dialog.DialogResult=false;};accept.Click+=delegate{dialog.DialogResult=true;};if(dialog.ShowDialog()!=true)return;
-   store.ImportPreset(preset);SetTimeout(store.Seconds);Filter();FillNpc();FillPrompt();message="预设已合并到草稿。检查后点“保存并启用”。";Refresh();
+   store.ImportPreset(preset);SetTimeout(store.Seconds);Filter();FillNpc();FillPrompt();message="预设已合并到草稿。检查后点“保存游戏补丁”。";Refresh();
   }
   void Locate(EditChange change){
    if(change.FieldKey!=null&&change.NpcId<0){Get<RadioButton>("NavPrompts").IsChecked=true;var f=store.Fields[change.FieldKey];Get<ComboBox>("PromptSelect").SelectedItem=catalog.Prompts.First(p=>p.Key==f.TemplateKey);Get<ComboBox>("PromptLanguage").SelectedIndex=Array.IndexOf(new[]{"zh-Hans","zh-Hant","en-US"},f.Language);FillPrompt();return;}

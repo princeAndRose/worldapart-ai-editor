@@ -11,7 +11,7 @@ namespace WorldApartAI {
    if(String.IsNullOrWhiteSpace(name)||name.Length>80)throw new InvalidDataException("方案名称需要 1–80 个字符。");
    var npc=store.Catalog.Npcs.First(n=>n.Id==id);
    var values=store.Fields.Values.Where(f=>f.NpcId==id).Select(f=>new PresetValue{Key=f.Key,Value=store.Value(f.Key,false)}).ToList();
-   foreach(string lang in new[]{"zh-Hans","zh-Hant","en-US"})values.Add(new PresetValue{Key=Store.NpcKey(id,"speakStyle",lang),Value=store.Style(id,lang,false)});
+   if(!npc.BackgroundOnly)foreach(string lang in new[]{"zh-Hans","zh-Hant","en-US"})values.Add(new PresetValue{Key=Store.NpcKey(id,"speakStyle",lang),Value=store.Style(id,lang,false)});
    return new CharacterPlan{Id=Guid.NewGuid().ToString("N"),Name=name.Trim(),NpcId=npc.Id,MetadataHash=store.Catalog.MetadataHash,Values=values};
   }
   public void Apply(Store store,int id){

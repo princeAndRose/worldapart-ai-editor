@@ -23,6 +23,7 @@ namespace WorldApartAI
   }
  }
  public sealed class Npc {
+  public bool BackgroundOnly; public string SearchNames;
   public int Id; public string Name; public string Title; public Dictionary<string,string> Style; public string Portrait;
   public Dictionary<string,Dictionary<string,string>> Fields;
   public override string ToString() { return Name+"  ·  "+Id+(String.IsNullOrWhiteSpace(Title)?"":"  /  "+Title); }
@@ -87,7 +88,7 @@ namespace WorldApartAI
    foreach(object item in Json.List(patch["upsert"])){var r=Json.Dict(item);if(!r.ContainsKey(key)||!ids.Add(Convert.ToInt32(r[key])))throw new InvalidDataException("补丁定位字段缺失或重复："+table);}
   }
   public void Reload(){
-   manifest=Load(Files[0],new Dictionary<string,object>{{"schemaVersion",5},{"modId",ModId},{"title","AI 编辑器设置"},{"author","Local"},{"version","0.4.0"},{"priority",0},{"units",new object[0]}});
+   manifest=Load(Files[0],new Dictionary<string,object>{{"schemaVersion",5},{"modId",ModId},{"title","AI 编辑器设置"},{"author","Local"},{"version","0.4.1"},{"priority",0},{"units",new object[0]}});
    if(Convert.ToString(manifest["modId"])!=ModId||Convert.ToInt32(manifest["schemaVersion"])!=5)throw new InvalidDataException("已有 Mod 清单不兼容。");
    constants=Load(Files[1],Patch("tbconstants","initialSpaceId"));persona=Load(Files[2],Patch("tbnpcaipersona","npcId"));
    ValidatePatch(constants,"tbconstants","initialSpaceId");ValidatePatch(persona,"tbnpcaipersona","npcId");
@@ -97,7 +98,7 @@ namespace WorldApartAI
    Styles.Clear();
    foreach(var r in Json.List(persona["upsert"]).Select(Json.Dict)){
     int id=Convert.ToInt32(r["npcId"]);
-    if(r.ContainsKey("speakStyle")&&npcs.ContainsKey(id)){
+    if(r.ContainsKey("speakStyle")&&npcs.ContainsKey(id)&&!npcs[id].BackgroundOnly){
      var style=new Dictionary<string,string>(npcs[id].Style);
      foreach(var pair in Json.Dict(r["speakStyle"]))style[pair.Key]=Convert.ToString(pair.Value);
      Styles[id]=style;
@@ -109,7 +110,7 @@ namespace WorldApartAI
    var values=!original&&Styles.ContainsKey(id)?Styles[id]:npcs[id].Style;string s;return values.TryGetValue(lang,out s)?s:"";
   }
   public void SetStyle(int id,string lang,string value){
-   if(!npcs.ContainsKey(id)||!new[]{"zh-Hans","zh-Hant","en-US"}.Contains(lang))throw new InvalidDataException("NPC 或语言不支持。");
+   if(!npcs.ContainsKey(id)||npcs[id].BackgroundOnly||!new[]{"zh-Hans","zh-Hant","en-US"}.Contains(lang))throw new InvalidDataException("此人物没有可编辑的说话风格，或语言不支持。");
    if(value.Length>8000)throw new InvalidDataException("说话风格最多 8000 字符。");
    if(!Styles.ContainsKey(id))Styles[id]=new Dictionary<string,string>(npcs[id].Style);Styles[id][lang]=value;
    if(Styles[id].Count==npcs[id].Style.Count&&Styles[id].All(kv=>npcs[id].Style.ContainsKey(kv.Key)&&npcs[id].Style[kv.Key]==kv.Value))Styles.Remove(id);
@@ -124,14 +125,14 @@ namespace WorldApartAI
    var c=Json.Copy(constants);var rows=Json.List(c["upsert"]);var cr=rows.Select(Json.Dict).FirstOrDefault(r=>Convert.ToInt32(r["initialSpaceId"])==100);
    if(cr==null){cr=new Dictionary<string,object>{{"initialSpaceId",100}};rows.Add(cr);}cr["CHAT_API_TIMEOUT_SECONDS"]=Seconds;c["upsert"]=rows;
    var p=Json.Copy(persona);var prows=Json.List(p["upsert"]);
-   foreach(var r in prows.Select(Json.Dict))if(npcs.ContainsKey(Convert.ToInt32(r["npcId"])))r.Remove("speakStyle");
-   prows.RemoveAll(o=>Json.Dict(o).Count==1&&npcs.ContainsKey(Convert.ToInt32(Json.Dict(o)["npcId"])));
+   foreach(var r in prows.Select(Json.Dict))if(npcs.ContainsKey(Convert.ToInt32(r["npcId"]))&&!npcs[Convert.ToInt32(r["npcId"])].BackgroundOnly)r.Remove("speakStyle");
+   prows.RemoveAll(o=>Json.Dict(o).Count==1&&npcs.ContainsKey(Convert.ToInt32(Json.Dict(o)["npcId"]))&&!npcs[Convert.ToInt32(Json.Dict(o)["npcId"])].BackgroundOnly);
    foreach(var pair in Styles.OrderBy(k=>k.Key)){
     if(pair.Value.Values.Any(s=>s==null||s.Length>8000))throw new InvalidDataException("说话风格长度不合法。");
     var pr=prows.Select(Json.Dict).FirstOrDefault(r=>Convert.ToInt32(r["npcId"])==pair.Key);
     if(pr==null){pr=new Dictionary<string,object>{{"npcId",pair.Key}};prows.Add(pr);}pr["speakStyle"]=pair.Value;
    }
-   p["upsert"]=prows;var m=Json.Copy(manifest);m["title"]="AI 编辑器设置（超时 "+Seconds+" 秒）";m["version"]="0.4.0";
+   p["upsert"]=prows;var m=Json.Copy(manifest);m["title"]="AI 编辑器设置（超时 "+Seconds+" 秒）";m["version"]="0.4.1";
    var output=new Dictionary<string,byte[]>{{Files[0],Utf8.GetBytes(Json.Write(m))},{Files[1],Utf8.GetBytes(Json.Write(c))}};
    BuildExtra(p,output);return output;
   }

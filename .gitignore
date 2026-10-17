@@ -3,6 +3,8 @@
 *
 !.gitignore
 !Core.cs
+!Diagnostics.cs
+!FeedbackTests.cs
 !Extended.cs
 !Workspace.cs
 !WorkspaceExtended.cs
