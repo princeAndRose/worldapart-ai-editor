@@ -32,11 +32,27 @@ for npc_id, b in base.items():
             for tier, text in p[field]: fields[field+':'+str(tier)] = text
     catalog['Npcs'].append({'Id':npc_id, 'Name':b.get('npcName',{}).get('zh-Hans','未命名配置'), 'Title':b.get('npcTitle',{}).get('zh-Hans',''), 'Style':p['speakStyle'] if p else {}, 'Portrait':b.get('portraitIcon','').lower(), 'Fields':fields, 'BackgroundOnly':p is None, 'SearchNames':' / '.join(dict.fromkeys(b.get('npcName',{}).values()))})
 catalog['Prompts'] = [{'Key':r['templateKey'], 'Text':r['templateText']} for r in prompts]
+# Keep verified preset compatibility reproducible in a clean source checkout.
+# Both metadata identities and the full editor reference content must match.
+verified_versions = {
+    'f91213826ea04a4ec18eed6659ff8c588a6cc961bd72f477b336f5e9e7a00a45': '0.35.7370692',
+    'b500dd2432b1d866f40a921c7e5200fc1c24bed45d967fa0ec6fa746a5caae5f': '0.38.7394395',
+}
+reference_hash = hashlib.sha256(json.dumps(
+    {k: catalog[k] for k in ('Npcs', 'Prompts')}, ensure_ascii=False,
+    sort_keys=True, separators=(',', ':')).encode('utf-8')).hexdigest()
+if (reference_hash == '0d5f94a628a72f951126b2a9004704d6d53a65e4e68a440022f2c7947a9d4dfe'
+        and verified_versions.get(catalog['MetadataHash']) == catalog['Version']):
+    catalog['CompatibleVersions'] = {k: v for k, v in verified_versions.items()
+                                     if k != catalog['MetadataHash']}
 out = root/'catalog.json'
 if out.exists():
     previous = json.loads(out.read_text('utf-8'))
     if previous.get('Npcs') == catalog['Npcs'] and previous.get('Prompts') == catalog['Prompts']:
-        catalog['CompatibleVersions'] = dict(previous.get('CompatibleVersions', {}))
-        catalog['CompatibleVersions'][previous['MetadataHash']] = previous['Version']
+        compatible = catalog.setdefault('CompatibleVersions', {})
+        compatible.update({k: v for k, v in previous.get('CompatibleVersions', {}).items()
+                           if k != catalog['MetadataHash']})
+        if previous['MetadataHash'] != catalog['MetadataHash']:
+            compatible[previous['MetadataHash']] = previous['Version']
 out.write_text(json.dumps(catalog, ensure_ascii=False, separators=(',',':')), 'utf-8')
 print(f'{len(catalog["Npcs"])} NPC configurations; {len(catalog["Prompts"])} templates; game {args.version}')

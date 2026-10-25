@@ -1,6 +1,6 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="不问凡尘 · AI 编辑器 0.4.1" Width="1240" Height="840" MinWidth="980" MinHeight="660"
+        Title="不问凡尘 · AI 编辑器 0.4.2" Width="1240" Height="840" MinWidth="980" MinHeight="660"
         WindowStartupLocation="CenterScreen" Background="#FFFFFF" Foreground="#25292D"
         FontFamily="Microsoft YaHei UI" FontSize="13" UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType">
@@ -48,7 +48,7 @@
   <Grid.RowDefinitions><RowDefinition Height="54"/><RowDefinition Height="*"/><RowDefinition Height="78"/></Grid.RowDefinitions>
   <Border Grid.Row="0" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="22,0">
    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-    <StackPanel Orientation="Horizontal"><TextBlock Text="不问凡尘" FontWeight="SemiBold" FontSize="17"/><TextBlock Text=" /  AI 编辑器" Foreground="{StaticResource Secondary}" FontSize="14"/><TextBlock Text="0.4.1" Margin="14,0,0,0" Style="{StaticResource Subtle}"/></StackPanel>
+    <StackPanel Orientation="Horizontal"><TextBlock Text="不问凡尘" FontWeight="SemiBold" FontSize="17"/><TextBlock Text=" /  AI 编辑器" Foreground="{StaticResource Secondary}" FontSize="14"/><TextBlock Text="0.4.2" Margin="14,0,0,0" Style="{StaticResource Subtle}"/></StackPanel>
     <TextBlock x:Name="RuntimeState" Grid.Column="1" Style="{StaticResource Subtle}" Text="读取游戏状态…"/>
    </Grid>
   </Border>

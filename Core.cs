@@ -88,7 +88,7 @@ namespace WorldApartAI
    foreach(object item in Json.List(patch["upsert"])){var r=Json.Dict(item);if(!r.ContainsKey(key)||!ids.Add(Convert.ToInt32(r[key])))throw new InvalidDataException("补丁定位字段缺失或重复："+table);}
   }
   public void Reload(){
-   manifest=Load(Files[0],new Dictionary<string,object>{{"schemaVersion",5},{"modId",ModId},{"title","AI 编辑器设置"},{"author","Local"},{"version","0.4.1"},{"priority",0},{"units",new object[0]}});
+   manifest=Load(Files[0],new Dictionary<string,object>{{"schemaVersion",5},{"modId",ModId},{"title","AI 编辑器设置"},{"author","Local"},{"version","0.4.2"},{"priority",0},{"units",new object[0]}});
    if(Convert.ToString(manifest["modId"])!=ModId||Convert.ToInt32(manifest["schemaVersion"])!=5)throw new InvalidDataException("已有 Mod 清单不兼容。");
    constants=Load(Files[1],Patch("tbconstants","initialSpaceId"));persona=Load(Files[2],Patch("tbnpcaipersona","npcId"));
    ValidatePatch(constants,"tbconstants","initialSpaceId");ValidatePatch(persona,"tbnpcaipersona","npcId");
@@ -132,7 +132,7 @@ namespace WorldApartAI
     var pr=prows.Select(Json.Dict).FirstOrDefault(r=>Convert.ToInt32(r["npcId"])==pair.Key);
     if(pr==null){pr=new Dictionary<string,object>{{"npcId",pair.Key}};prows.Add(pr);}pr["speakStyle"]=pair.Value;
    }
-   p["upsert"]=prows;var m=Json.Copy(manifest);m["title"]="AI 编辑器设置（超时 "+Seconds+" 秒）";m["version"]="0.4.1";
+   p["upsert"]=prows;var m=Json.Copy(manifest);m["title"]="AI 编辑器设置（超时 "+Seconds+" 秒）";m["version"]="0.4.2";
    var output=new Dictionary<string,byte[]>{{Files[0],Utf8.GetBytes(Json.Write(m))},{Files[1],Utf8.GetBytes(Json.Write(c))}};
    BuildExtra(p,output);return output;
   }

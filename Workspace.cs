@@ -15,8 +15,8 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Win32;
 [assembly: AssemblyTitle("不问凡尘 AI 编辑器")]
-[assembly: AssemblyVersion("0.4.1.0")]
-[assembly: AssemblyFileVersion("0.4.1.0")]
+[assembly: AssemblyVersion("0.4.2.0")]
+[assembly: AssemblyFileVersion("0.4.2.0")]
 namespace WorldApartAI {
  public sealed class NpcRow : INotifyPropertyChanged {
   public string Coverage {get{return Npc.BackgroundOnly?"仅背景":"人设与背景";}}

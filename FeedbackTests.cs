@@ -7,6 +7,16 @@ namespace WorldApartAI {
   static void Check(bool ok,string name){if(!ok)throw new Exception("Feedback: "+name);}
   static void Reject(Action a,string name){bool failed=false;try{a();}catch{failed=true;}Check(failed,name);}
   public static void Run(string folder,Catalog catalog){
+   if(catalog.CompatibleVersions!=null)foreach(var previous in catalog.CompatibleVersions){
+    var oldCatalog=Json.Read<Catalog>(Json.Write(catalog));oldCatalog.MetadataHash=previous.Key;oldCatalog.Version=previous.Value;
+    var oldStore=new Store(Path.Combine(folder,"previous-"+Guid.NewGuid().ToString("N")),oldCatalog,new MemoryPrefs());
+    string priorKey=Store.NpcKey(110402,"propPlot","zh-Hans");oldStore.Seconds=600;oldStore.SetValue(priorKey,"旧版背景方案");
+    var oldPreset=oldStore.ExportPreset();var oldPlan=CharacterPlan.Capture(oldStore,110402,"更新前方案");oldStore.Save(false);
+    var upgraded=new Store(oldStore.Root,catalog,new MemoryPrefs());Check(upgraded.Seconds==600&&upgraded.Value(priorKey,false)=="旧版背景方案","saved overrides survive game update");
+    upgraded.SetValue(priorKey,"新版草稿");upgraded.ImportPreset(oldPreset);Check(upgraded.Seconds==600&&upgraded.Value(priorKey,false)=="旧版背景方案","previous compatible preset imports");
+    upgraded.SetValue(priorKey,"另一份草稿");oldPlan.Apply(upgraded,110402);Check(upgraded.Value(priorKey,false)=="旧版背景方案","previous compatible plan applies");
+    oldPreset.MetadataHash=new string('0',64);string snapshot=Json.Write(upgraded.ExportPreset());Reject(delegate{upgraded.ImportPreset(oldPreset);},"unverified version remains rejected");Check(snapshot==Json.Write(upgraded.ExportPreset()),"rejected version leaves draft intact");
+   }
    var store=new Store(Path.Combine(folder,"feedback-"+Guid.NewGuid().ToString("N")),catalog,new MemoryPrefs());
    Check(catalog.Npcs.All(n=>n.Id>0),"placeholder IDs excluded from character and prompt routing");
    foreach(int id in new[]{110402,150101,193401,194401}){

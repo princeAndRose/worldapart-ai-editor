@@ -8,7 +8,7 @@ Windows x64；系统自带 .NET Framework 4.x 编译器与 WPF。生成参考数
 python -m venv .venv
 .venv/Scripts/python -m pip install -r requirements-dev.txt
 .venv/Scripts/python extract-tables.py --game 'D:/Steam/steamapps/common/A1' --out local-data
-.venv/Scripts/python build-catalog.py --game 'D:/Steam/steamapps/common/A1' --tables local-data --version 0.35.7370692
+.venv/Scripts/python build-catalog.py --game 'D:/Steam/steamapps/common/A1' --tables local-data --version 0.38.7394395
 .venv/Scripts/python build-extended.py --game 'D:/Steam/steamapps/common/A1'
 ./build.ps1
 ```
