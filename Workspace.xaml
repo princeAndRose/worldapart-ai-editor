@@ -57,8 +57,8 @@
    <Border Background="#F4F5F5" BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
     <Grid><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
      <StackPanel Margin="0,18,0,0">
-      <TextBlock Text="编辑" Margin="25,0,0,10" Style="{StaticResource Subtle}"/>
-      <RadioButton x:Name="NavRequests" GroupName="Pages" Style="{StaticResource Nav}" Content="回复设置" IsChecked="True"/>
+      <TextBlock Text="游戏补丁" Margin="25,24,0,10" Style="{StaticResource Subtle}"/>
+      <RadioButton x:Name="NavRequests" GroupName="Pages" Style="{StaticResource Nav}" Content="回复设置"/>
       <RadioButton x:Name="NavNpc" GroupName="Pages" Style="{StaticResource Nav}" Content="人物"/>
       <RadioButton x:Name="NavPrompts" GroupName="Pages" Style="{StaticResource Nav}" Content="全局提示词"/>
       <TextBlock Text="工具" Margin="25,28,0,10" Style="{StaticResource Subtle}"/>

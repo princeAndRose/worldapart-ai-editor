@@ -18,16 +18,34 @@ namespace WorldApartAI {
   readonly HashSet<TcpClient> clients=new HashSet<TcpClient>();readonly HashSet<HttpWebRequest> upstreams=new HashSet<HttpWebRequest>();
   readonly List<RequestRecord> records=new List<RequestRecord>();public int Revision{get;private set;}
   public bool Running{get{lock(sync)return running;}}
-  public static Uri ValidateUpstream(string value,int port){
+  // A grant is one literal RFC1918 IPv4 origin, never a subnet or DNS name.
+  // Check the original spelling too: Uri canonicalizes integer/hex/short IPv4 forms.
+  public static string LanHttpOrigin(string value){
+   Uri uri;if(!Uri.TryCreate(value,UriKind.Absolute,out uri)||uri.Scheme!="http"||uri.UserInfo.Length>0||uri.Query.Length>0||uri.Fragment.Length>0)return null;
+   var match=System.Text.RegularExpressions.Regex.Match(value,@"^http://([0-9]{1,3}(?:\.[0-9]{1,3}){3})(?::[0-9]+)?(?:/|$)",System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+   IPAddress ip;if(!match.Success||!IPAddress.TryParse(match.Groups[1].Value,out ip)||ip.AddressFamily!=AddressFamily.InterNetwork||ip.ToString()!=match.Groups[1].Value)return null;
+   byte[] b=ip.GetAddressBytes();if(!(b[0]==10||(b[0]==172&&b[1]>=16&&b[1]<=31)||(b[0]==192&&b[1]==168)))return null;
+   return "http://"+ip+":"+uri.Port;
+  }
+  public static Uri ValidateUpstream(string value,int port,string trustedLanHttpOrigin="",bool requireLanTrust=true){
    Uri uri;if(!Uri.TryCreate(value,UriKind.Absolute,out uri)||uri.UserInfo.Length>0||uri.Query.Length>0||uri.Fragment.Length>0||!(uri.Scheme=="https"||uri.Scheme=="http"))throw new InvalidDataException("模型服务地址需为 http(s) 地址，不能含密钥、查询参数或片段。");
    IPAddress ip;bool local=uri.Host.Equals("localhost",StringComparison.OrdinalIgnoreCase)||(IPAddress.TryParse(uri.Host,out ip)&&IPAddress.IsLoopback(ip));
-   if(uri.Scheme=="http"&&!local)throw new InvalidDataException("远程模型服务请使用 HTTPS；HTTP 仅支持本机地址。");
+   string lan=LanHttpOrigin(value);
+   if(!String.IsNullOrEmpty(trustedLanHttpOrigin)&&trustedLanHttpOrigin!=lan)throw new InvalidDataException("局域网 HTTP 授权与当前地址不符，请重新确认 IP 和端口。");
+   if(uri.Scheme=="http"&&!local){
+    if(lan==null)throw new InvalidDataException("远程模型服务请使用 HTTPS；局域网 HTTP 只接受明确授权的 10.x、172.16–31.x 或 192.168.x IPv4 地址。");
+    if(requireLanTrust&&trustedLanHttpOrigin!=lan)throw new InvalidDataException("请先勾选信任当前局域网 HTTP 地址。请求内容和 API 密钥将以明文发送到该 IP 和端口。");
+   }
    if(local&&uri.Port==port)throw new InvalidDataException("上游不能指向代理自身端口。");
    return uri;
   }
-  public void Configure(StudioSettings value){StudioLibrary.Validate(value);lock(sync){if(running&&settings.Port!=value.Port)throw new InvalidOperationException("请停止代理后再修改监听端口。");settings=Json.Read<StudioSettings>(Json.Write(value));if(!value.CaptureRequests)ClearLocked();}}
+  public void Configure(StudioSettings value){StudioLibrary.Validate(value);lock(sync){
+   // Invalidate accepted clients as well as upstream requests when permission changes.
+   if(running&&(settings.Port!=value.Port||settings.Upstream!=value.Upstream||settings.TrustedLanHttpOrigin!=value.TrustedLanHttpOrigin))Stop();
+   settings=Json.Read<StudioSettings>(Json.Write(value));if(!value.CaptureRequests)ClearLocked();
+  }}
   public void Start(StudioSettings value){
-   if(Running)throw new InvalidOperationException("代理已经启动。");Configure(value);
+   if(Running)throw new InvalidOperationException("代理已经启动。");ValidateUpstream(value.Upstream,value.Port,value.TrustedLanHttpOrigin);Configure(value);
    var next=new TcpListener(IPAddress.Loopback,value.Port);next.Server.ExclusiveAddressUse=true;next.Start(8);
    int run;lock(sync){listener=next;running=true;run=++runId;}acceptThread=new Thread(delegate(){Accept(next,run);}){IsBackground=true};acceptThread.Start();
   }
@@ -58,7 +76,7 @@ namespace WorldApartAI {
       lock(sync){if(epoch==generation){records.Insert(0,record);while(records.Count>20||records.Sum(r=>(long)r.Before.Length+r.After.Length)>8000000)records.RemoveAt(records.Count-1);Revision++;}}
      }
     }
-    Uri upstream=ValidateUpstream(config.Upstream,config.Port);var target=new Uri(upstream.AbsoluteUri.TrimEnd('/')+(chat?"/chat/completions":"/models"));
+    Uri upstream=ValidateUpstream(config.Upstream,config.Port,config.TrustedLanHttpOrigin);var target=new Uri(upstream.AbsoluteUri.TrimEnd('/')+(chat?"/chat/completions":"/models"));
     // Reject DNS aliases resolving back to this listener too.
     if(target.Port==config.Port&&Dns.GetHostAddresses(target.Host).Any(IPAddress.IsLoopback))throw new InvalidDataException("上游解析到了代理自身。");
     request=(HttpWebRequest)WebRequest.Create(target);request.Method=first[0];request.AllowAutoRedirect=false;request.Proxy=null;request.Timeout=config.TimeoutSeconds*1000;request.ReadWriteTimeout=config.TimeoutSeconds*1000;request.KeepAlive=false;
