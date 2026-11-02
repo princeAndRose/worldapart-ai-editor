@@ -12,7 +12,8 @@ namespace WorldApartAI {
  public sealed partial class Workspace {
   string planProofFolder;StudioLibrary library;ProxyServer proxy=new ProxyServer();bool studioLoading,proxyDirty,loreDirty;int seenRevision=-1;
   ScrollViewer loreScroll;TabControl studioTabs;TextBox upstreamInput,portInput,waitInput,budgetInput,ruleName,ruleKeys,ruleSystem,ruleText,rulePriority,requestText;
-  CheckBox captureInput,ruleEnabled,ruleAlways,ruleAll;ComboBox ruleScope,requestView;ListBox loreList,requestList;
+  CheckBox captureInput,lanTrustInput,ruleEnabled,ruleAlways,ruleAll;ComboBox ruleScope,requestView;ListBox loreList,requestList;
+  string lanTrustDraft="";
   TextBlock proxyState,studioNotice,requestSummary,loreNotice;Button startProxy,stopProxy;List<LoreEntry> loreDraft;LoreEntry editingRule;RequestRecord selectedRequest;
   static TextBlock Label(string text){return new TextBlock{Text=text,TextWrapping=TextWrapping.Wrap,Margin=new Thickness(0,8,0,5)};}
   static TextBox Input(string name,bool multiline){var text=new TextBox{AcceptsReturn=multiline,TextWrapping=multiline?TextWrapping.Wrap:TextWrapping.NoWrap,VerticalScrollBarVisibility=multiline?ScrollBarVisibility.Auto:ScrollBarVisibility.Hidden,VerticalContentAlignment=multiline?VerticalAlignment.Top:VerticalAlignment.Center};System.Windows.Automation.AutomationProperties.SetName(text,name);return text;}
@@ -25,36 +26,44 @@ namespace WorldApartAI {
   void InitializeStudio(bool testMode){
    string root=testMode?Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"ui-test-data","studio"):Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"WorldApart.AI.Editor");
    library=new StudioLibrary(Path.Combine(root,"studio.json"));loreDraft=Json.Read<List<LoreEntry>>(Json.Write(library.Data.Entries));
-   var nav=new RadioButton{Content="请求工作台",GroupName="Pages",Style=(Style)window.FindResource("Nav")};window.RegisterName("NavStudio",nav);var navPanel=(StackPanel)Get<RadioButton>("NavSettings").Parent;navPanel.Children.Insert(navPanel.Children.IndexOf(Get<RadioButton>("NavSettings")),nav);
+   var nav=new RadioButton{Content="请求工作台",GroupName="Pages",Style=(Style)window.FindResource("Nav")};window.RegisterName("NavStudio",nav);var navPanel=(StackPanel)Get<RadioButton>("NavSettings").Parent;navPanel.Children.Insert(0,nav);
    // Keep navigation reachable at the smallest supported window size.
    var navGrid=(Grid)navPanel.Parent;navGrid.Children.Remove(navPanel);var navScroll=new ScrollViewer{Content=navPanel,VerticalScrollBarVisibility=ScrollBarVisibility.Auto};navGrid.Children.Add(navScroll);
    var page=Rows(Auto,Auto,Star);page.Margin=new Thickness(28,20,28,18);page.Visibility=Visibility.Collapsed;pages.Add("Studio",page);((Grid)Get<FrameworkElement>("PromptsPage").Parent).Children.Add(page);nav.Checked+=delegate{Show("Studio");};
    Put(page,new TextBlock{Text="请求工作台",Style=(Style)window.FindResource("SectionTitle")},0);
-   Put(page,Label("连接本地代理后，查看游戏请求并按条件加入世界书。工作台设置单独保存，不写入游戏补丁。"),1);
+   Put(page,Label("从这里启动代理，查看游戏请求、使用世界书。只想改人物或回复超时？直接选择左侧对应页面即可。"),1);
    studioTabs=new TabControl{Margin=new Thickness(0,12,0,0)};Put(page,studioTabs,2);
    studioTabs.Items.Add(new TabItem{Header="本地代理",Content=BuildProxyPage()});studioTabs.Items.Add(new TabItem{Header="请求记录",Content=BuildRecordsPage()});studioTabs.Items.Add(new TabItem{Header="世界书",Content=BuildLorePage()});
    var tools=(StackPanel)Button("BackGallery").Parent;tools.Children.Insert(1,Actions(ActionButton("人物方案…",OpenPlans),ActionButton("设定预览",LocalNpcPreview)));
    window.Closing+=delegate(object sender,CancelEventArgs e){if(e.Cancel)return;if((proxy.Running||proxyDirty||loreDirty)&&MessageBox.Show(window,(proxy.Running?"关闭会停止代理并中断进行中的请求。游戏若仍连接代理，将无法收到回复。\n":"")+(proxyDirty||loreDirty?"未保存的工作台设置将丢失。\n":"")+"确定关闭？","关闭编辑器",MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes)e.Cancel=true;};
-   window.Closed+=delegate{proxy.Dispose();};FillProxy();if(library.LoadError!=null){message=library.LoadError;studioNotice.Text=library.LoadError;}RefreshStudio();
+   window.Closed+=delegate{proxy.Dispose();};FillProxy();if(library.LoadError!=null){message=library.LoadError;studioNotice.Text=library.LoadError;}RefreshStudio();nav.IsChecked=true;
   }
   UIElement BuildProxyPage(){var grid=Rows(Auto,Star);var fixedPanel=new StackPanel{Margin=new Thickness(18,8,18,0)};Put(grid,fixedPanel,0);var panel=new StackPanel{Margin=new Thickness(18,0,18,12)};
    proxyState=Label("代理未启动");proxyState.FontWeight=FontWeights.SemiBold;fixedPanel.Children.Add(proxyState);
    startProxy=ActionButton("启动代理",delegate{SaveProxy();proxy.Start(library.Data);RefreshStudio();});stopProxy=ActionButton("停止代理",delegate{proxy.Stop();RefreshStudio();});fixedPanel.Children.Add(Actions(startProxy,stopProxy,ActionButton("保存代理设置",SaveProxy),ActionButton("恢复资料库…",RecoverStudio)));
-   studioNotice=Label("首次使用：先保存设置并启动代理，再把下面地址填入游戏的自定义模型服务地址。API 密钥仍填在游戏内，代理只转发鉴权，不保存密钥。");panel.Children.Add(studioNotice);
-   panel.Children.Add(Label("游戏连接地址（代理启动后使用）"));var address=Input("游戏连接地址",false);address.IsReadOnly=true;address.Text="http://127.0.0.1:"+library.Data.Port+"/v1";window.RegisterName("ProxyAddress",address);panel.Children.Add(address);panel.Children.Add(Actions(ActionButton("复制连接地址",delegate{Clipboard.SetText(address.Text);})));
+   panel.Children.Add(Label("首次连接：① 填写原模型服务地址 → ② 点“启动代理”（会保存设置）→ ③ 将游戏连接地址复制到游戏的自定义模型设置。模型名和 API 密钥仍填在游戏中。"));
+   studioNotice=Label("代理尚未启动。使用期间请保持编辑器打开。");panel.Children.Add(studioNotice);
    panel.Children.Add(Label("模型服务地址 · 原来填在游戏中的地址，通常以 /v1 结尾"));upstreamInput=Input("模型服务地址",false);panel.Children.Add(upstreamInput);
+   lanTrustInput=new CheckBox{Margin=new Thickness(0,8,0,4)};panel.Children.Add(lanTrustInput);
+   panel.Children.Add(Label("局域网 HTTP 不加密，会向所示 IP 和端口发送对话及游戏传来的 API 密钥。仅在你信任的网络与模型服务上勾选；公网服务请使用 HTTPS。"));
+   lanTrustInput.Checked+=delegate{if(!studioLoading){lanTrustDraft=ProxyServer.LanHttpOrigin(upstreamInput.Text.Trim())??"";proxyDirty=true;studioNotice.Text="局域网授权尚未保存。";}};
+   lanTrustInput.Unchecked+=delegate{if(!studioLoading){lanTrustDraft="";proxyDirty=true;studioNotice.Text="局域网授权已取消勾选，保存后停止代理并撤销授权。";}};
+   upstreamInput.TextChanged+=delegate{if(!studioLoading){lanTrustDraft="";lanTrustInput.IsChecked=false;UpdateLanTrust();}};
+   panel.Children.Add(Label("游戏连接地址 · 启动代理后复制到游戏"));var address=Input("游戏连接地址",false);address.IsReadOnly=true;address.Text="http://127.0.0.1:"+library.Data.Port+"/v1";window.RegisterName("ProxyAddress",address);panel.Children.Add(address);panel.Children.Add(Actions(ActionButton("复制连接地址",delegate{Clipboard.SetText(address.Text);})));
    var columns=new Grid();columns.ColumnDefinitions.Add(new ColumnDefinition());columns.ColumnDefinitions.Add(new ColumnDefinition());var left=new StackPanel{Margin=new Thickness(0,0,16,0)};left.Children.Add(Label("本机监听端口"));portInput=Input("监听端口",false);left.Children.Add(portInput);columns.Children.Add(left);var right=new StackPanel();Grid.SetColumn(right,1);right.Children.Add(Label("代理最长等待时间（秒）"));waitInput=Input("代理等待秒数",false);right.Children.Add(waitInput);columns.Children.Add(right);panel.Children.Add(columns);
-   captureInput=new CheckBox{Content="记录请求正文，仅保留在本次运行内存中",Margin=new Thickness(0,16,0,8)};panel.Children.Insert(1,captureInput);
+   captureInput=new CheckBox{Content="记录请求正文，仅保留在本次运行内存中",Margin=new Thickness(0,16,0,8)};panel.Children.Add(captureInput);
    panel.Children.Add(Label("请求可能包含私人对话。最多保留 20 条 / 800 万字符，超出后移除最早记录；关闭记录会清空已有正文。Authorization 请求头不会进入记录。"));
 
-   panel.Children.Add(Label("上游与记录设置保存后用于下一条请求；修改端口需先停止代理。代理等待时间不会延长游戏自己的超时，实际等待由先到期的一方决定。关闭编辑器会停止代理；不用时将游戏地址改回原模型服务地址。"));
+   panel.Children.Add(Label("修改模型地址会清除局域网授权勾选。保存地址、端口或授权的改动会停止代理并中断当前请求，需重新启动。其他设置用于下一条请求。代理等待时间不会延长游戏超时；不用代理时将游戏地址改回原模型服务地址。"));
    foreach(var input in new[]{upstreamInput,portInput,waitInput})input.TextChanged+=delegate{if(!studioLoading){proxyDirty=true;studioNotice.Text="代理设置尚未保存。";}};captureInput.Checked+=delegate{if(!studioLoading){proxyDirty=true;studioNotice.Text="代理设置尚未保存。";}};captureInput.Unchecked+=delegate{if(!studioLoading){proxyDirty=true;studioNotice.Text="代理设置尚未保存。";}};
    Put(grid,new ScrollViewer{Content=panel,VerticalScrollBarVisibility=ScrollBarVisibility.Auto},1);return grid;
   }
-  void RecoverStudio(){if(proxy.Running)throw new InvalidOperationException("请先停止代理。");bool backup=File.Exists(library.PathName+".bak");var choice=MessageBox.Show(window,(backup?"选择“是”：从上一版备份恢复。\n选择“否”：重建空资料库（备份也损坏时使用）。\n选择“取消”：保留现状。\n":"没有上一版备份，重建空资料库？\n")+"当前文件另存保留，未保存工作台设置会丢弃。游戏补丁不变。","恢复资料库",backup?MessageBoxButton.YesNoCancel:MessageBoxButton.YesNo,MessageBoxImage.Question);if(choice==MessageBoxResult.Cancel||(!backup&&choice!=MessageBoxResult.Yes))return;library.Recover(backup&&choice==MessageBoxResult.Yes);loreDraft=Json.Read<List<LoreEntry>>(Json.Write(library.Data.Entries));RefreshLoreList(null);FillProxy();budgetInput.Text=library.Data.Budget.ToString();proxyDirty=false;loreDirty=false;studioNotice.Text="资料库已恢复。原文件保存在资料库目录中。";loreNotice.Text="已读取恢复后的世界书。";message="资料库已恢复。";Refresh();}
-  void FillProxy(){studioLoading=true;try{upstreamInput.Text=library.Data.Upstream;portInput.Text=library.Data.Port.ToString();waitInput.Text=library.Data.TimeoutSeconds.ToString();captureInput.IsChecked=library.Data.CaptureRequests;}finally{studioLoading=false;}}
+  void RecoverStudio(){if(proxy.Running)throw new InvalidOperationException("请先停止代理。");bool backup=File.Exists(library.PathName+".bak");var choice=MessageBox.Show(window,(backup?"选择“是”：从上一版备份恢复。\n选择“否”：重建空资料库（备份也损坏时使用）。\n选择“取消”：保留现状。\n":"没有上一版备份，重建空资料库？\n")+"当前文件另存保留，未保存工作台设置会丢弃。游戏补丁不变。","恢复资料库",backup?MessageBoxButton.YesNoCancel:MessageBoxButton.YesNo,MessageBoxImage.Question);if(choice==MessageBoxResult.Cancel||(!backup&&choice!=MessageBoxResult.Yes))return;library.Recover(backup&&choice==MessageBoxResult.Yes);loreDraft=Json.Read<List<LoreEntry>>(Json.Write(library.Data.Entries));RefreshLoreList(null);FillProxy();budgetInput.Text=library.Data.Budget.ToString();proxyDirty=false;loreDirty=false;studioNotice.Text="资料库已恢复。局域网 HTTP 需重新授权；原文件保存在资料库目录中。";loreNotice.Text="已读取恢复后的世界书。";message="资料库已恢复。";Refresh();}
+  void UpdateLanTrust(){string origin=ProxyServer.LanHttpOrigin(upstreamInput.Text.Trim());lanTrustInput.IsEnabled=origin!=null;lanTrustInput.Content=new TextBlock{Text=origin==null?"局域网 HTTP 授权（填写私有 IPv4 地址后可选）":"我信任此局域网 HTTP 服务："+origin,TextWrapping=TextWrapping.Wrap};}
+  void FillProxy(){studioLoading=true;try{upstreamInput.Text=library.Data.Upstream;portInput.Text=library.Data.Port.ToString();waitInput.Text=library.Data.TimeoutSeconds.ToString();captureInput.IsChecked=library.Data.CaptureRequests;lanTrustDraft=library.Data.TrustedLanHttpOrigin??"";UpdateLanTrust();lanTrustInput.IsChecked=lanTrustDraft.Length>0;}finally{studioLoading=false;}}
   void SaveProxy(){var next=CopyLibrary();int port,timeout;if(!Int32.TryParse(portInput.Text,out port)||!Int32.TryParse(waitInput.Text,out timeout))throw new InvalidDataException("端口与等待时间需要整数。");next.Port=port;next.TimeoutSeconds=timeout;next.Upstream=upstreamInput.Text.Trim().TrimEnd('/');next.CaptureRequests=captureInput.IsChecked==true;
-   StudioLibrary.Validate(next);if(proxy.Running&&next.Port!=library.Data.Port)throw new InvalidOperationException("请停止代理后再修改端口。");library.Save(next);proxy.Configure(next);proxyDirty=false;Get<TextBox>("ProxyAddress").Text="http://127.0.0.1:"+next.Port+"/v1";studioNotice.Text="代理设置已保存。启动不会自动修改游戏的模型地址。";RefreshStudio();
+   next.TrustedLanHttpOrigin=lanTrustInput.IsChecked==true?lanTrustDraft:"";
+   StudioLibrary.Validate(next);bool wasRunning=proxy.Running;library.Save(next);proxy.Configure(next);proxyDirty=false;Get<TextBox>("ProxyAddress").Text="http://127.0.0.1:"+next.Port+"/v1";studioNotice.Text=wasRunning&&!proxy.Running?"连接设置已保存，代理已停止；确认设置后请重新启动。":"代理设置已保存。启动不会自动修改游戏的模型地址。";RefreshStudio();
   }
   UIElement BuildRecordsPage(){var grid=Rows(Auto,Star);grid.Margin=new Thickness(12);Put(grid,Actions(ActionButton("清空请求记录",delegate{proxy.Clear();selectedRequest=null;requestText.Text="";RefreshStudio();}),ActionButton("本地试匹配…",TryLore)),0);
    var split=new Grid();split.ColumnDefinitions.Add(new ColumnDefinition{Width=new GridLength(210)});split.ColumnDefinitions.Add(new ColumnDefinition());Put(grid,split,1);

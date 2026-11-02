@@ -15,6 +15,7 @@ namespace WorldApartAI {
   static System.Collections.Generic.IEnumerable<T> VisualChildren<T>(DependencyObject parent)where T:DependencyObject {for(int i=0;i<VisualTreeHelper.GetChildrenCount(parent);i++){var child=VisualTreeHelper.GetChild(parent,i);if(child is T)yield return (T)child;foreach(var nested in VisualChildren<T>(child))yield return nested;}}
   public void RenderTests(string folder){
    Directory.CreateDirectory(folder);window.Show();
+   var studioNav=Get<RadioButton>("NavStudio");if(studioNav.IsChecked!=true||activePage!="Studio"||((StackPanel)studioNav.Parent).Children[0]!=studioNav||pages["Studio"].Visibility!=Visibility.Visible||Get<FrameworkElement>("GameFooter").Visibility!=Visibility.Collapsed)throw new Exception("Request workbench must be the first navigation item and startup page");RenderProof(folder,"00-startup-workbench");
    Get<RadioButton>("NavRequests").IsChecked=true;RenderProof(folder,"00-requests");
    Get<RadioButton>("NavNpc").IsChecked=true;RenderProof(folder,"01-gallery");
    Get<TextBox>("GallerySearch").Text="苏倾盏";if(filteredRows.Count<2)throw new Exception("Same-name search missing distinct identities");RenderProof(folder,"02-same-name");
@@ -46,6 +47,8 @@ namespace WorldApartAI {
   void RenderStudioTests(string folder){
    Get<RadioButton>("NavNpc").IsChecked=true;Get<TextBox>("NpcSearch").Text="100000";current=catalog.Npcs.First(n=>n.Id==100000);library.Data.Plans.Add(CharacterPlan.Capture(store,current.Id,"客栈掌柜 · 原设"));store.SetStyle(current.Id,"zh-Hans","直率健谈，喜欢聊客栈来往的见闻。");planProofFolder=folder;OpenPlans();planProofFolder=null;
    Get<RadioButton>("NavStudio").IsChecked=true;studioTabs.SelectedIndex=0;RenderProof(folder,"14-proxy-stopped-min");
+   upstreamInput.Text="http://192.168.0.235:1234/v1";if(!lanTrustInput.IsEnabled||lanTrustInput.IsChecked==true)throw new Exception("LAN opt-in must default off");lanTrustInput.IsChecked=true;SaveProxy();FillProxy();if(lanTrustInput.IsChecked!=true||lanTrustDraft!="http://192.168.0.235:1234")throw new Exception("Exact LAN grant did not survive reload");RenderProof(folder,"26-lan-trust-min");
+   upstreamInput.Text="http://192.168.0.235:1235/v1";upstreamInput.Text="http://192.168.0.235:1234/v1";if(lanTrustInput.IsChecked==true||lanTrustDraft.Length>0)throw new Exception("Address edits must invalidate prior trust even when restored");SaveProxy();if(!String.IsNullOrEmpty(library.Data.TrustedLanHttpOrigin))throw new Exception("Revocation was not saved");upstreamInput.Text="http://127.0.0.1:1234/v1";if(lanTrustInput.IsEnabled)throw new Exception("Loopback needs no LAN trust");SaveProxy();
    loreDraft=new System.Collections.Generic.List<LoreEntry>{new LoreEntry{Name="客栈夜话",Keywords="灯,客栈",SystemMatch="掌柜",Content="客栈窗边放着一盏青瓷灯。谈及它时，可自然提到掌柜夜里点灯等客的习惯。",Priority=10},new LoreEntry{Name="雪山旧闻",Keywords="雪山",Content="山路冬季封雪，商旅会在驿站停留。"}};
    studioTabs.SelectedIndex=2;RefreshLoreList(loreDraft[0]);RenderProof(folder,"15-lore-min");
    studioTabs.SelectedIndex=1;RenderProof(folder,"16-records-empty-min");

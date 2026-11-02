@@ -29,6 +29,7 @@ namespace WorldApartAI {
  public sealed class StudioSettings {
   public int Version=1,Port=18181,TimeoutSeconds=300,Budget=6000;
   public string Upstream="http://127.0.0.1:1234/v1";
+  public string TrustedLanHttpOrigin="";
   public bool CaptureRequests=false;
   public List<CharacterPlan> Plans=new List<CharacterPlan>(); public List<LoreEntry> Entries=new List<LoreEntry>();
  }
@@ -39,7 +40,9 @@ namespace WorldApartAI {
   public static void Validate(StudioSettings data){
    if(data==null||data.Version!=1||data.Plans==null||data.Entries==null||data.Plans.Count>2000||data.Entries.Count>300)throw new InvalidDataException("编辑器资料库格式不兼容。");
    if(data.Port<1024||data.Port>65535||data.TimeoutSeconds<30||data.TimeoutSeconds>1800||data.Budget<0||data.Budget>24000)throw new InvalidDataException("端口需为 1024–65535，等待时间为 30–1800 秒，世界书预算为 0–24000 字符。");
-   ProxyServer.ValidateUpstream(data.Upstream,data.Port);
+   // Allow saving a LAN address with no grant so users can revoke trust while
+   // retaining their address. Starting/forwarding still requires the exact grant.
+   ProxyServer.ValidateUpstream(data.Upstream,data.Port,data.TrustedLanHttpOrigin,false);
    if(data.Plans.Any(p=>p==null||String.IsNullOrWhiteSpace(p.Id)||String.IsNullOrWhiteSpace(p.Name)||p.Name.Length>80||String.IsNullOrEmpty(p.MetadataHash)||p.MetadataHash.Length!=64||p.Values==null||p.Values.Count>1000)||data.Plans.Select(p=>p.Id).Distinct().Count()!=data.Plans.Count)throw new InvalidDataException("人物方案结构不合法。");
    foreach(var plan in data.Plans)if(plan.Values.Any(v=>v==null||v.Key==null||v.Value==null||v.Value.Length>24000||!v.Key.StartsWith("npc/"+plan.NpcId+"/",StringComparison.Ordinal))||plan.Values.Select(v=>v.Key).Distinct().Count()!=plan.Values.Count)throw new InvalidDataException("人物方案字段不合法。");
    if(data.Entries.Any(e=>e==null||String.IsNullOrWhiteSpace(e.Id))||data.Entries.Select(e=>e.Id).Distinct().Count()!=data.Entries.Count)throw new InvalidDataException("世界书条目 ID 重复或缺失。");
@@ -58,7 +61,9 @@ namespace WorldApartAI {
    Data=Json.Read<StudioSettings>(Json.Write(next));fingerprint=Store.FileHash(PathName);
   }
   public void Recover(bool fromBackup){
-   var next=fromBackup?Json.Read<StudioSettings>(File.ReadAllText(PathName+".bak",Encoding.UTF8)):new StudioSettings();Validate(next);
+   var next=fromBackup?Json.Read<StudioSettings>(File.ReadAllText(PathName+".bak",Encoding.UTF8)):new StudioSettings();
+   // A backup may predate a revocation; recovery must not silently restore trust.
+   if(next!=null)next.TrustedLanHttpOrigin="";Validate(next);
    if(File.Exists(PathName)){if(Store.FileHash(PathName)!=fingerprint)throw new IOException("资料库再次变化，请重新打开编辑器。");File.Copy(PathName,PathName+".preserved-"+Guid.NewGuid().ToString("N")+".json");}
    string old=LoadError;LoadError=null;try{Save(next);}catch{LoadError=old;throw;}
   }
@@ -70,7 +75,10 @@ namespace WorldApartAI {
   }
   public static PromptTrace Build(string body,StudioSettings config){try{return BuildCore(body,config);}catch(InvalidDataException){throw;}catch(Exception ex){if(ex is ArgumentException||ex is InvalidCastException||ex is NullReferenceException)throw new InvalidDataException("请求 JSON 或 messages 结构无效。");throw;}}
   static PromptTrace BuildCore(string body,StudioSettings config){
-   var result=new PromptTrace{Before=body,After=body};var request=Json.Obj(body);object raw;
+   var result=new PromptTrace{Before=body,After=body};Dictionary<string,object> request;
+   // JavaScriptSerializer uses InvalidOperationException for some malformed JSON
+   // on Mono. Limit this conversion to parsing, not the rule-processing code.
+   try{request=Json.Obj(body);}catch(InvalidOperationException){throw new InvalidDataException("请求 JSON 或 messages 结构无效。");}object raw;
    if(request==null||!request.TryGetValue("messages",out raw))throw new InvalidDataException("需要包含 messages 的 Chat Completions JSON。");
    var messages=Json.List(raw);if(messages.Count>2000)throw new InvalidDataException("消息数量超过 2000。");
    var mapped=messages.Select(Json.Dict).ToList();if(mapped.Any(m=>!m.ContainsKey("role")))throw new InvalidDataException("消息缺少 role。");
