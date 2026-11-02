@@ -49,7 +49,9 @@ Get-Content (Join-Path $testDir 'PROXY-PASSED.txt')
 
 也可使用 Mono 的 C# 5 编译器编译相同文件和入口，以 `mono ProxyRunner.exe <新测试目录>` 运行。测试覆盖默认拒绝 LAN HTTP、标准 RFC1918 IPv4 范围、精确 IP/端口授权、旧配置兼容、保存/重载/撤销/恢复备份、重定向隔离，以及真实回环 TCP 转发、鉴权、错误、SSE 首块和改地址中断进行中的请求。测试不会连接示例中的局域网地址。
 
-网络测试重启时使用新端口，避免 Mono/Linux 的 `ExclusiveAddressUse` 与 TCP `TIME_WAIT` 干扰；Windows 上停止后使用同一端口重启仍需单独检查。Linux 编译和回环测试不能代替 Windows WPF 渲染、实际游戏或局域网 LM Studio 验证。`RenderTests.cs` 已包含默认打开工作台、菜单首位、最小窗口及 LAN 授权变更/撤销检查；发布前还应在 Windows 下执行 `--render-test` 和 `--ui-test`，检查滚动区域与完整接入流程。
+网络测试重启时使用新端口，避免 Mono/Linux 的 `ExclusiveAddressUse` 与 TCP `TIME_WAIT` 干扰；Windows 上停止后使用同一端口重启应单独检查。Linux 编译和回环测试不能代替 Windows WPF 渲染、实际游戏或局域网 LM Studio 验证。`RenderTests.cs` 已包含默认打开工作台、菜单首位、最小窗口及 LAN 授权变更/撤销检查；发布前还应在 Windows 下执行 `--render-test` 和 `--ui-test`，检查滚动区域与完整接入流程。
+
+0.4.3 初轮 Windows 检查已覆盖五项自测、渲染、界面启动代理后向本机 LM Studio 发送合成对话，以及同端口停止再启动；另用本机私有网卡 IP 上的临时测试服务检查转发与授权撤销。这不等于跨电脑连接真实模型服务。最终 0.4.3 构建已重新完成五项自测、渲染、本机模型合成请求与同端口重启；发布记录须绑定该构建的 EXE 哈希，不能把初轮结果直接归到后来构建。详细验证范围见 `docs/compatibility.md`；本次未启动游戏，也未修改真实游戏存档或配置。
 
 ## 结构与贡献
 

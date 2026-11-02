@@ -43,13 +43,13 @@ namespace WorldApartAI {
    startProxy=ActionButton("启动代理",delegate{SaveProxy();proxy.Start(library.Data);RefreshStudio();});stopProxy=ActionButton("停止代理",delegate{proxy.Stop();RefreshStudio();});fixedPanel.Children.Add(Actions(startProxy,stopProxy,ActionButton("保存代理设置",SaveProxy),ActionButton("恢复资料库…",RecoverStudio)));
    panel.Children.Add(Label("首次连接：① 填写原模型服务地址 → ② 点“启动代理”（会保存设置）→ ③ 将游戏连接地址复制到游戏的自定义模型设置。模型名和 API 密钥仍填在游戏中。"));
    studioNotice=Label("代理尚未启动。使用期间请保持编辑器打开。");panel.Children.Add(studioNotice);
-   panel.Children.Add(Label("1. 模型服务地址 · 原来填在游戏中的地址，通常以 /v1 结尾"));upstreamInput=Input("模型服务地址",false);panel.Children.Add(upstreamInput);
+   panel.Children.Add(Label("模型服务地址 · 原来填在游戏中的地址，通常以 /v1 结尾"));upstreamInput=Input("模型服务地址",false);panel.Children.Add(upstreamInput);
    lanTrustInput=new CheckBox{Margin=new Thickness(0,8,0,4)};panel.Children.Add(lanTrustInput);
    panel.Children.Add(Label("局域网 HTTP 不加密，会向所示 IP 和端口发送对话及游戏传来的 API 密钥。仅在你信任的网络与模型服务上勾选；公网服务请使用 HTTPS。"));
    lanTrustInput.Checked+=delegate{if(!studioLoading){lanTrustDraft=ProxyServer.LanHttpOrigin(upstreamInput.Text.Trim())??"";proxyDirty=true;studioNotice.Text="局域网授权尚未保存。";}};
    lanTrustInput.Unchecked+=delegate{if(!studioLoading){lanTrustDraft="";proxyDirty=true;studioNotice.Text="局域网授权已取消勾选，保存后停止代理并撤销授权。";}};
    upstreamInput.TextChanged+=delegate{if(!studioLoading){lanTrustDraft="";lanTrustInput.IsChecked=false;UpdateLanTrust();}};
-   panel.Children.Add(Label("3. 游戏连接地址 · 启动代理后复制到游戏"));var address=Input("游戏连接地址",false);address.IsReadOnly=true;address.Text="http://127.0.0.1:"+library.Data.Port+"/v1";window.RegisterName("ProxyAddress",address);panel.Children.Add(address);panel.Children.Add(Actions(ActionButton("复制连接地址",delegate{Clipboard.SetText(address.Text);})));
+   panel.Children.Add(Label("游戏连接地址 · 启动代理后复制到游戏"));var address=Input("游戏连接地址",false);address.IsReadOnly=true;address.Text="http://127.0.0.1:"+library.Data.Port+"/v1";window.RegisterName("ProxyAddress",address);panel.Children.Add(address);panel.Children.Add(Actions(ActionButton("复制连接地址",delegate{Clipboard.SetText(address.Text);})));
    var columns=new Grid();columns.ColumnDefinitions.Add(new ColumnDefinition());columns.ColumnDefinitions.Add(new ColumnDefinition());var left=new StackPanel{Margin=new Thickness(0,0,16,0)};left.Children.Add(Label("本机监听端口"));portInput=Input("监听端口",false);left.Children.Add(portInput);columns.Children.Add(left);var right=new StackPanel();Grid.SetColumn(right,1);right.Children.Add(Label("代理最长等待时间（秒）"));waitInput=Input("代理等待秒数",false);right.Children.Add(waitInput);columns.Children.Add(right);panel.Children.Add(columns);
    captureInput=new CheckBox{Content="记录请求正文，仅保留在本次运行内存中",Margin=new Thickness(0,16,0,8)};panel.Children.Add(captureInput);
    panel.Children.Add(Label("请求可能包含私人对话。最多保留 20 条 / 800 万字符，超出后移除最早记录；关闭记录会清空已有正文。Authorization 请求头不会进入记录。"));

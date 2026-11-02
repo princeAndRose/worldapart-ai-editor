@@ -56,8 +56,36 @@ namespace WorldApartAI {
     config.Upstream="http://127.0.0.1:1234/v1";proxy.Configure(config);config.Upstream=lan;Reject(delegate{proxy.Start(config);},"returning to prior LAN address does not revive grant");
    }
   }
-  // Restarts use a fresh port: Mono/Linux retains closed connections in TIME_WAIT
-  // with ExclusiveAddressUse. Windows same-port restart is a separate UI check.
+  // Windows must support the same-port restart used by the desktop UI.
+  // Mono/Linux retains ExclusiveAddressUse connections in TIME_WAIT.
+  static int RestartPort(int previous){return Environment.OSVersion.Platform==PlatformID.Win32NT?previous:FreePort();}
+  // Explicit opt-in integration check on this machine's own private adapter.
+  // The fixture rejects peers other than that adapter; no external model is used.
+  public static void RunLocalLanTests(string folder,string address){
+   IPAddress ip=IPAddress.Parse(address);
+   Check(System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces().Any(n=>n.GetIPProperties().UnicastAddresses.Any(a=>a.Address.Equals(ip))),"LAN test address belongs to this machine");
+   Check(ProxyServer.LanHttpOrigin("http://"+ip+"/v1")!=null,"LAN fixture uses RFC1918");
+   using(var upstream=new Fixture(ip))using(var proxy=new ProxyServer()){
+    var config=new StudioSettings{Port=FreePort(),Upstream="http://"+ip+":"+upstream.Port+"/v1"};
+    string body=Json.Write(new{model="fixture",messages=new[]{new{role="user",content="synthetic LAN check"}}});
+    Reject(delegate{proxy.Start(config);},"LAN denied without exact grant");Check(upstream.RequestCount==0&&!proxy.Running,"default denial sends no request");
+    config.TrustedLanHttpOrigin=ProxyServer.LanHttpOrigin(config.Upstream);proxy.Start(config);
+    Check(Call(config.Port,"/v1/chat/completions",body).Contains("fixture-ok"),"LAN adapter TCP response");Check(upstream.RequestCount==1&&upstream.LastAuthorization=="Bearer fixture-secret","LAN auth forwarded only after grant");
+    var pending=new Thread(delegate(){try{Call(config.Port,"/v1/chat/completions",body.Replace("fixture","hold"));}catch{}}){IsBackground=true};pending.Start();Check(upstream.Held.WaitOne(5000),"LAN request held upstream");
+    using(var accepted=new TcpClient()){
+     accepted.Connect(IPAddress.Loopback,config.Port);accepted.ReceiveTimeout=3000;
+     byte[] header=Encoding.ASCII.GetBytes("POST /v1/chat/completions HTTP/1.1\r\nHost: 127.0.0.1:"+config.Port+"\r\nContent-Length: 2\r\nExpect: 100-continue\r\n\r\n");
+     var stream=accepted.GetStream();stream.Write(header,0,header.Length);string interim="";
+     while(!interim.EndsWith("\r\n\r\n")){int next=stream.ReadByte();if(next<0)throw new IOException("Client ended before proxy accepted it");interim+=(char)next;}
+     Check(interim.Contains("100 Continue"),"partial LAN client accepted before revocation");
+     config.TrustedLanHttpOrigin="";proxy.Configure(config);Check(!proxy.Running&&pending.Join(5000),"LAN revocation cancels in-flight request");
+     bool closed=false;try{closed=stream.ReadByte()<0;}catch(IOException e){var socket=e.InnerException as SocketException;closed=socket!=null&&(socket.SocketErrorCode==SocketError.ConnectionReset||socket.SocketErrorCode==SocketError.ConnectionAborted||socket.SocketErrorCode==SocketError.Shutdown);}
+     Check(closed,"revocation closes accepted client before its body can be sent");
+    }
+    int count=upstream.RequestCount;Reject(delegate{proxy.Start(config);},"LAN restart denied after revocation");Check(upstream.RequestCount==count,"revoked restart sends no additional request");upstream.Release.Set();
+   }
+   Directory.CreateDirectory(folder);File.WriteAllText(Path.Combine(folder,"LOCAL-LAN-PASSED.txt"),"PASS: synthetic HTTP on this machine's private IPv4 adapter; default deny, exact grant, body/auth forwarding, in-flight revocation and restart denial. No other LAN machine/model or firewall changes.");
+  }
   static void NetworkTests(string body){
    using(var upstream=new Fixture())using(var proxy=new ProxyServer()){
     int port=FreePort();var config=new StudioSettings{Port=port,Upstream="http://127.0.0.1:"+upstream.Port+"/v1",CaptureRequests=true,Entries=new List<LoreEntry>{new LoreEntry{Name="追加",Always=true,Content="测试世界书"}}};proxy.Start(config);
@@ -74,9 +102,9 @@ namespace WorldApartAI {
     var records=proxy.Snapshot();Check(records.Count==4&&!Json.Write(records).Contains("fixture-secret"),"No auth in logs");Check(records.All(r=>r.Before!=r.After),"before after captured");proxy.Clear();Check(proxy.Snapshot().Count==0,"clear records");
     config.CaptureRequests=false;proxy.Configure(config);Call(port,"/v1/chat/completions",body);Check(proxy.Snapshot().Count==0,"capture off");
     Check(Call(port,"/v1/chat/completions","{broken").StartsWith("400:"),"Invalid JSON returns 400");
-    config.Upstream="http://127.0.0.1:"+FreePort()+"/v1";proxy.Configure(config);Check(!proxy.Running,"upstream change stops listener");config.Port=port=FreePort();proxy.Start(config);Check(Call(port,"/v1/chat/completions",body).StartsWith("502:"),"Unreachable upstream returns 502");
-    config.Upstream="http://127.0.0.1:"+upstream.Port+"/v1";config.CaptureRequests=true;proxy.Configure(config);config.Port=port=FreePort();proxy.Start(config);
-    string pendingResult=null;var pending=new Thread(delegate(){try{pendingResult=Call(port,"/v1/chat/completions",body.Replace("fixture","hold"));}catch{}}){IsBackground=true};pending.Start();Check(upstream.Held.WaitOne(5000),"pending request entered upstream");proxy.Clear();config.Upstream="http://127.0.0.1:"+upstream.Port+"/changed/v1";proxy.Configure(config);Check(!proxy.Running,"connection change stops in-flight requests");Check(pending.Join(5000),"stopped request terminates before upstream responds");Check(pendingResult==null||!pendingResult.Contains("fixture-ok"),"stopped request cannot complete successfully");upstream.Release.Set();config.Port=port=FreePort();proxy.Start(config);Thread.Sleep(100);Check(proxy.Snapshot().Count==0,"cleared in-flight records never reappear");Check(Call(port,"/v1/chat/completions",body).Contains("fixture-ok"),"restart accepts fresh request");proxy.Stop();Check(!proxy.Running,"stop");
+    config.Upstream="http://127.0.0.1:"+FreePort()+"/v1";proxy.Configure(config);Check(!proxy.Running,"upstream change stops listener");config.Port=port=RestartPort(port);proxy.Start(config);Check(Call(port,"/v1/chat/completions",body).StartsWith("502:"),"Unreachable upstream returns 502");
+    config.Upstream="http://127.0.0.1:"+upstream.Port+"/v1";config.CaptureRequests=true;proxy.Configure(config);config.Port=port=RestartPort(port);proxy.Start(config);
+    string pendingResult=null;var pending=new Thread(delegate(){try{pendingResult=Call(port,"/v1/chat/completions",body.Replace("fixture","hold"));}catch{}}){IsBackground=true};pending.Start();Check(upstream.Held.WaitOne(5000),"pending request entered upstream");proxy.Clear();config.Upstream="http://127.0.0.1:"+upstream.Port+"/changed/v1";proxy.Configure(config);Check(!proxy.Running,"connection change stops in-flight requests");Check(pending.Join(5000),"stopped request terminates before upstream responds");Check(pendingResult==null||!pendingResult.Contains("fixture-ok"),"stopped request cannot complete successfully");upstream.Release.Set();config.Port=port=RestartPort(port);proxy.Start(config);Thread.Sleep(100);Check(proxy.Snapshot().Count==0,"cleared in-flight records never reappear");Check(Call(port,"/v1/chat/completions",body).Contains("fixture-ok"),"restart accepts fresh request");proxy.Stop();Check(!proxy.Running,"stop");
    }
   }
   static string StreamFirst(int port,string body){var request=(HttpWebRequest)WebRequest.Create("http://127.0.0.1:"+port+"/v1/chat/completions");request.Proxy=null;request.Method="POST";request.Timeout=10000;request.ServicePoint.Expect100Continue=false;byte[] bytes=Encoding.UTF8.GetBytes(body);request.ContentLength=bytes.Length;using(var output=request.GetRequestStream())output.Write(bytes,0,bytes.Length);using(var response=request.GetResponse())using(var reader=new StreamReader(response.GetResponseStream())){var clock=System.Diagnostics.Stopwatch.StartNew();string first=reader.ReadLine();Check(first.Contains("delta")&&clock.ElapsedMilliseconds<800,"first SSE event available before delayed end");string rest=reader.ReadToEnd();Check(clock.ElapsedMilliseconds>=800,"upstream end intentionally delayed");return first+rest;}}
@@ -86,8 +114,10 @@ namespace WorldApartAI {
   }
   internal sealed class Fixture : IDisposable {
    TcpListener listener;Thread thread;public int Port;public string LastBody,LastAuthorization,RedirectLocation;public int RequestCount;bool stop;public ManualResetEvent Held=new ManualResetEvent(false),Release=new ManualResetEvent(false);
-   public Fixture(){listener=new TcpListener(IPAddress.Loopback,0);listener.Start();Port=((IPEndPoint)listener.LocalEndpoint).Port;thread=new Thread(Serve){IsBackground=true};thread.Start();}
-   void Serve(){while(!stop){TcpClient c;try{c=listener.AcceptTcpClient();}catch{return;}try{using(c)using(var s=c.GetStream()){var header=new List<byte>();while(true){int b=s.ReadByte();if(b<0)throw new IOException();header.Add((byte)b);int n=header.Count;if(n>=4&&header[n-4]==13&&header[n-3]==10&&header[n-2]==13&&header[n-1]==10)break;}string h=Encoding.ASCII.GetString(header.ToArray());int length=0;foreach(string line in h.Split('\n')){if(line.StartsWith("Content-Length:",StringComparison.OrdinalIgnoreCase))length=Int32.Parse(line.Substring(15).Trim());if(line.StartsWith("Authorization:",StringComparison.OrdinalIgnoreCase))LastAuthorization=line.Substring(14).Trim();}var bytes=new byte[length];for(int i=0;i<length;){int n=s.Read(bytes,i,length-i);if(n==0)throw new IOException();i+=n;}LastBody=Encoding.UTF8.GetString(bytes);Interlocked.Increment(ref RequestCount);
+   readonly IPAddress allowedPeer;
+   public Fixture():this(IPAddress.Loopback){}
+   public Fixture(IPAddress address){allowedPeer=address;listener=new TcpListener(address,0);listener.Start();Port=((IPEndPoint)listener.LocalEndpoint).Port;thread=new Thread(Serve){IsBackground=true};thread.Start();}
+   void Serve(){while(!stop){TcpClient c;try{c=listener.AcceptTcpClient();}catch{return;}if(!((IPEndPoint)c.Client.RemoteEndPoint).Address.Equals(allowedPeer)){c.Close();continue;}try{using(c)using(var s=c.GetStream()){var header=new List<byte>();while(true){int b=s.ReadByte();if(b<0)throw new IOException();header.Add((byte)b);int n=header.Count;if(n>=4&&header[n-4]==13&&header[n-3]==10&&header[n-2]==13&&header[n-1]==10)break;}string h=Encoding.ASCII.GetString(header.ToArray());int length=0;foreach(string line in h.Split('\n')){if(line.StartsWith("Content-Length:",StringComparison.OrdinalIgnoreCase))length=Int32.Parse(line.Substring(15).Trim());if(line.StartsWith("Authorization:",StringComparison.OrdinalIgnoreCase))LastAuthorization=line.Substring(14).Trim();}var bytes=new byte[length];for(int i=0;i<length;){int n=s.Read(bytes,i,length-i);if(n==0)throw new IOException();i+=n;}LastBody=Encoding.UTF8.GetString(bytes);Interlocked.Increment(ref RequestCount);
     bool streaming=LastBody.Contains("\"stream\":true"),error=LastBody.Contains("\"error\"");string result=h.StartsWith("GET")?"{\"data\":[{\"id\":\"fixture\"}]}":"{\"choices\":[{\"message\":{\"content\":\"fixture-ok\"}}]}";
     if(LastBody.Contains("\"hold\"")){Held.Set();Release.WaitOne(10000);}
     if(LastBody.Contains("\"redirect\"")){Write(s,"HTTP/1.1 302 Found\r\nLocation: "+RedirectLocation+"\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");}
