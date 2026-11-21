@@ -35,3 +35,4 @@ assets/*
 !docs/
 docs/*
 !docs/compatibility.md
+!docs/update-044.md

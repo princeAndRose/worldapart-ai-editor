@@ -17,7 +17,8 @@ namespace WorldApartAI {
   public void Apply(Store store,int id){
    if(id!=NpcId||Values==null||Values.Any(v=>v==null||v.Key==null||!v.Key.StartsWith("npc/"+id+"/",StringComparison.Ordinal)))throw new InvalidDataException("此方案属于另一个人物，未修改草稿。");
    var expected=Capture(store,id,"检查").Values.Select(v=>v.Key).OrderBy(k=>k).ToArray();
-   if(!Values.Select(v=>v.Key).OrderBy(k=>k).SequenceEqual(expected))throw new InvalidDataException("方案字段与当前人物不匹配，请保留旧方案并重新建立。");
+   var keys=Values.Select(v=>v.Key).ToArray();bool legacy=store.Catalog.CanImport(MetadataHash)&&store.Catalog.MatchVersion(MetadataHash)==null;
+   if(legacy?(keys.Length==0||keys.Distinct().Count()!=keys.Length||keys.Any(k=>!expected.Contains(k))):!keys.OrderBy(k=>k).SequenceEqual(expected))throw new InvalidDataException("方案字段与当前人物不匹配，请保留旧方案并重新建立。");
    store.ImportPreset(new EditorPreset{Format="WorldApart.AI.Editor.Preset",Version=1,MetadataHash=MetadataHash,TimeoutSeconds=store.Seconds,Values=Values});
   }
  }
@@ -69,7 +70,19 @@ namespace WorldApartAI {
   }
  }
  public sealed class PromptTrace {
+  public const string MemoryMaintenanceNote="后台记忆整理（memory_maintenance_v2）：跳过全部世界书条目，按游戏原始请求转发。";
   public string Before,After,Injected="";public List<string> Decisions=new List<string>();public int AddedCharacters;
+  // This exact structured-output contract is emitted by the game's
+  // AinpcRuntime.BuildMemoryResponseFormat. Never infer background work from
+  // words in the conversation or from json_schema alone.
+  static bool IsMemoryMaintenance(Dictionary<string,object> request){
+   object value;Dictionary<string,object> format,schema;
+   if(!request.TryGetValue("response_format",out value)||(format=value as Dictionary<string,object>)==null)return false;
+   if(!format.TryGetValue("type",out value)||!(value is string)||(string)value!="json_schema")return false;
+   if(!format.TryGetValue("json_schema",out value)||(schema=value as Dictionary<string,object>)==null)return false;
+   if(!schema.TryGetValue("name",out value)||!(value is string)||(string)value!="memory_maintenance_v2")return false;
+   return schema.TryGetValue("strict",out value)&&value is bool&&(bool)value;
+  }
   public static string ContentText(Dictionary<string,object> message){object value;if(!message.TryGetValue("content",out value)||value==null)return "";if(value is string)return (string)value;
    try{return String.Join("\n",Json.List(value).Select(o=>Json.Dict(o)).Where(o=>o.ContainsKey("type")&&Convert.ToString(o["type"])=="text"&&o.ContainsKey("text")).Select(o=>Convert.ToString(o["text"])));}catch{return "";}
   }
@@ -82,6 +95,7 @@ namespace WorldApartAI {
    if(request==null||!request.TryGetValue("messages",out raw))throw new InvalidDataException("需要包含 messages 的 Chat Completions JSON。");
    var messages=Json.List(raw);if(messages.Count>2000)throw new InvalidDataException("消息数量超过 2000。");
    var mapped=messages.Select(Json.Dict).ToList();if(mapped.Any(m=>!m.ContainsKey("role")))throw new InvalidDataException("消息缺少 role。");
+   if(IsMemoryMaintenance(request)){result.Decisions.Add(MemoryMaintenanceNote);return result;}
    var users=mapped.Where(m=>Convert.ToString(m["role"])=="user").Select(ContentText).ToList();
    string systems=String.Join("\n",mapped.Where(m=>new[]{"system","developer"}.Contains(Convert.ToString(m["role"]))).Select(ContentText));
    var blocks=new List<string>();foreach(var e in config.Entries.OrderByDescending(e=>e.Priority).ThenBy(e=>e.Id,StringComparer.Ordinal)){

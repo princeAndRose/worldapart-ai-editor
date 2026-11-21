@@ -22,6 +22,7 @@ namespace WorldApartAI {
    lines.Add("游戏版本："+(compatible?matchedGameVersion:"未匹配，请选择正确的游戏目录"));
    lines.Add("游戏补丁草稿："+draft.Changes().Count+" 项未保存修改");
    lines.Add("启用记录："+(prefError!=null?"无法读取":enabled?"已启用（不代表游戏加载成功）":"未启用，请在退出游戏后保存游戏补丁"));
+   if(prefError==null&&store.IsPackageDisabled())lines.Add("游戏已整体禁用编辑器设置包。退出游戏后保存游戏补丁，会重新启用此包；其他包的状态会保留。");
    bool changed=store.PatchChangedOnDisk();
    lines.Add("磁盘文件："+(changed?"打开编辑器后被其他程序改动。先导出预设，再重新打开编辑器检查。":"与编辑器读取时一致"));
    DateTime? modified=store.LastPatchWrite();

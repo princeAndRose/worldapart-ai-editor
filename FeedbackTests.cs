@@ -7,6 +7,19 @@ namespace WorldApartAI {
   static void Check(bool ok,string name){if(!ok)throw new Exception("Feedback: "+name);}
   static void Reject(Action a,string name){bool failed=false;try{a();}catch{failed=true;}Check(failed,name);}
   public static void Run(string folder,Catalog catalog){
+   if(catalog.ImportVersions!=null)foreach(var previous in catalog.ImportVersions){
+    Check(catalog.MatchVersion(previous.Key)==null&&catalog.CanImport(previous.Key),"import permission does not recognize old game");
+    var migrated=new Store(Path.Combine(folder,"migration-"+Guid.NewGuid().ToString("N")),catalog,new MemoryPrefs());
+    string bg=Store.NpcKey(120305,"propPlot","zh-Hans"),hidden=Store.NpcKey(120305,"hiddenPersona","zh-Hans");
+    migrated.SetValue(hidden,"保留新添字段草稿");migrated.SetStyle(120305,"zh-Hans","保留新版风格草稿");
+    var plan=new CharacterPlan{NpcId=120305,MetadataHash=previous.Key,Values=new[]{"zh-Hans","zh-Hant","en-US"}.Select(l=>new PresetValue{Key=Store.NpcKey(120305,"propPlot",l),Value="旧背景方案"}).ToList()};
+    plan.Apply(migrated,120305);Check(migrated.Value(bg,false)=="旧背景方案"&&migrated.Value(hidden,false)=="保留新添字段草稿"&&migrated.Style(120305,"zh-Hans",false)=="保留新版风格草稿","legacy background plan preserves newly added persona");
+    var legacyPreset=migrated.ExportPreset();legacyPreset.MetadataHash=previous.Key;legacyPreset.TimeoutSeconds=600;migrated.ImportPreset(legacyPreset);migrated.Save(false);
+    var reread=new Store(migrated.Root,catalog,new MemoryPrefs());Check(reread.Seconds==600&&reread.Value(bg,false)=="旧背景方案","legacy import save reload");
+    string legacyBefore=Json.Write(migrated.ExportPreset());plan.MetadataHash=catalog.MetadataHash;Reject(delegate{plan.Apply(migrated,120305);},"current plan still requires full fields");
+    plan.MetadataHash=new string('0',64);Reject(delegate{plan.Apply(migrated,120305);},"unknown plan rejected");legacyPreset.MetadataHash=new string('0',64);Reject(delegate{migrated.ImportPreset(legacyPreset);},"unknown legacyPreset rejected");
+    Check(Json.Write(migrated.ExportPreset())==legacyBefore,"rejected migrations are atomic");
+   }
    if(catalog.CompatibleVersions!=null)foreach(var previous in catalog.CompatibleVersions){
     var oldCatalog=Json.Read<Catalog>(Json.Write(catalog));oldCatalog.MetadataHash=previous.Key;oldCatalog.Version=previous.Value;
     var oldStore=new Store(Path.Combine(folder,"previous-"+Guid.NewGuid().ToString("N")),oldCatalog,new MemoryPrefs());

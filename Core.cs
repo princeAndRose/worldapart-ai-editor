@@ -13,6 +13,8 @@ namespace WorldApartAI
  public sealed class Catalog {
   public string MetadataHash; public string Version; public List<Npc> Npcs;
   public Dictionary<string,string> CompatibleVersions;
+  public Dictionary<string,string> ImportVersions;
+  public bool CanImport(string hash){return MatchVersion(hash)!=null||(hash!=null&&ImportVersions!=null&&ImportVersions.ContainsKey(hash));}
   public List<PromptTemplate> Prompts;
   public string MatchVersion(string hash) {
    if(String.IsNullOrEmpty(hash))return null;
@@ -37,32 +39,42 @@ namespace WorldApartAI
   public static List<object> List(object o) { return ((IEnumerable)o).Cast<object>().ToList(); }
   public static Dictionary<string,object> Copy(Dictionary<string,object> o) { return Obj(Write(o)); }
  }
- public interface IPrefs { byte[] Read(); void Write(byte[] bytes); }
+ public interface IPrefs { byte[] Read(); void Write(byte[] bytes); byte[] ReadDisabledPackages(); void WriteDisabledPackages(byte[] bytes); }
  public sealed class RealPrefs : IPrefs {
   const string Key="Software\\Nuverse\\WorldApart", Value="MOD_ENABLED_ENTRIES_V2_h2913630511";
-  public byte[] Read() {
+  const string DisabledValue="MOD_DISABLED_PACKAGES_V1_h2297876066";
+  public byte[] Read(){return ReadValue(Value);}
+  public void Write(byte[] bytes){WriteValue(Value,bytes);}
+  public byte[] ReadDisabledPackages(){return ReadValue(DisabledValue);}
+  public void WriteDisabledPackages(byte[] bytes){WriteValue(DisabledValue,bytes);}
+  static byte[] ReadValue(string name) {
    using(var root=RegistryKey.OpenBaseKey(RegistryHive.CurrentUser,RegistryView.Registry64))
    using(var key=root.OpenSubKey(Key)) {
     if(key==null) throw new InvalidOperationException("未找到游戏设置。请先正常启动并退出一次游戏。");
-    object value=key.GetValue(Value); if(value==null)return null;
-    if(key.GetValueKind(Value)!=RegistryValueKind.Binary)throw new InvalidDataException("游戏 Mod 启用项格式不兼容，未作更改。");
+    // Refuse an unexpected Unity key spelling rather than silently reading it as absent.
+    string prefix=name.Substring(0,name.LastIndexOf("_h",StringComparison.Ordinal));
+    if(key.GetValueNames().Any(n=>(n==prefix||n.StartsWith(prefix+"_h",StringComparison.Ordinal))&&n!=name))throw new InvalidDataException("游戏 Mod 启用项名称不兼容，未作更改。");
+    object value=key.GetValue(name); if(value==null)return null;
+    if(key.GetValueKind(name)!=RegistryValueKind.Binary)throw new InvalidDataException("游戏 Mod 启用项格式不兼容，未作更改。");
     return (byte[])value;
    }
   }
-  public void Write(byte[] bytes) {
+  static void WriteValue(string name,byte[] bytes) {
    using(var root=RegistryKey.OpenBaseKey(RegistryHive.CurrentUser,RegistryView.Registry64))
    using(var key=root.OpenSubKey(Key,true)) {
     if(key==null)throw new InvalidOperationException("游戏设置不可写。");
-    if(bytes==null)key.DeleteValue(Value,false);else key.SetValue(Value,bytes,RegistryValueKind.Binary);
+    if(bytes==null)key.DeleteValue(name,false);else key.SetValue(name,bytes,RegistryValueKind.Binary);
     key.Flush();
    }
-   byte[] read=Read(); if(bytes==null?read!=null:read==null||!read.SequenceEqual(bytes))throw new IOException("启用记录写入校验失败。");
+   byte[] read=ReadValue(name); if(bytes==null?read!=null:read==null||!read.SequenceEqual(bytes))throw new IOException("启用记录写入校验失败。");
   }
  }
  public sealed class MemoryPrefs : IPrefs {
-  public byte[] Bytes; public bool FailNext;
+  public byte[] Bytes,DisabledPackages; public bool FailNext,FailNextDisabled,FailDisabledAfterWrite;
   public byte[] Read() { return Bytes==null?null:Bytes.ToArray(); }
   public void Write(byte[] b) { if(FailNext){FailNext=false;throw new IOException("Simulated registry failure");}Bytes=b==null?null:b.ToArray(); }
+  public byte[] ReadDisabledPackages(){return DisabledPackages==null?null:DisabledPackages.ToArray();}
+  public void WriteDisabledPackages(byte[] b){if(FailNextDisabled){FailNextDisabled=false;throw new IOException("Simulated package registry failure");}DisabledPackages=b==null?null:b.ToArray();if(FailDisabledAfterWrite){FailDisabledAfterWrite=false;throw new IOException("Simulated package verification failure");}}
  }
  public sealed partial class Store {
   public const string ModId="local.ai-timeout", Entry="local.ai-timeout:tables";
@@ -88,7 +100,7 @@ namespace WorldApartAI
    foreach(object item in Json.List(patch["upsert"])){var r=Json.Dict(item);if(!r.ContainsKey(key)||!ids.Add(Convert.ToInt32(r[key])))throw new InvalidDataException("补丁定位字段缺失或重复："+table);}
   }
   public void Reload(){
-   manifest=Load(Files[0],new Dictionary<string,object>{{"schemaVersion",5},{"modId",ModId},{"title","AI 编辑器设置"},{"author","Local"},{"version","0.4.3"},{"priority",0},{"units",new object[0]}});
+   manifest=Load(Files[0],new Dictionary<string,object>{{"schemaVersion",5},{"modId",ModId},{"title","AI 编辑器设置"},{"author","Local"},{"version","0.4.4"},{"priority",0},{"units",new object[0]}});
    if(Convert.ToString(manifest["modId"])!=ModId||Convert.ToInt32(manifest["schemaVersion"])!=5)throw new InvalidDataException("已有 Mod 清单不兼容。");
    constants=Load(Files[1],Patch("tbconstants","initialSpaceId"));persona=Load(Files[2],Patch("tbnpcaipersona","npcId"));
    ValidatePatch(constants,"tbconstants","initialSpaceId");ValidatePatch(persona,"tbnpcaipersona","npcId");
@@ -115,10 +127,15 @@ namespace WorldApartAI
    if(!Styles.ContainsKey(id))Styles[id]=new Dictionary<string,string>(npcs[id].Style);Styles[id][lang]=value;
    if(Styles[id].Count==npcs[id].Style.Count&&Styles[id].All(kv=>npcs[id].Style.ContainsKey(kv.Key)&&npcs[id].Style[kv.Key]==kv.Value))Styles.Remove(id);
   }
-  public bool IsEnabled(){return Entries(Prefs.Read()).Contains(Entry);}
-  static List<string> Entries(byte[] b){return b==null?new List<string>():Utf8.GetString(b).TrimEnd('\0').Split(new[]{'\n'},StringSplitOptions.RemoveEmptyEntries).Select(s=>s.TrimEnd('\r')).ToList();}
+  public bool IsPackageDisabled(){return Entries(Prefs.ReadDisabledPackages()).Contains(ModId);}
+  public bool IsEnabled(){return Entries(Prefs.Read()).Contains(Entry)&&!IsPackageDisabled();}
+  static List<string> Entries(byte[] b){return b==null?new List<string>():Utf8.GetString(b).TrimEnd('\0').Split(new[]{'\n'},StringSplitOptions.RemoveEmptyEntries).Select(s=>s.Trim()).Where(s=>s.Length>0).ToList();}
   static byte[] EnableBytes(byte[] old,bool enabled){
    var entries=Entries(old);entries.RemoveAll(s=>s==Entry);if(enabled)entries.Add(Entry);return Utf8.GetBytes(String.Join("\n",entries)+"\0");
+  }
+  static byte[] UnblockPackage(byte[] old){
+   if(!Entries(old).Contains(ModId))return old;
+   return Utf8.GetBytes(String.Join("\n",Utf8.GetString(old).TrimEnd('\0').Split('\n').Where(s=>s.Trim()!=ModId))+"\0");
   }
   public Dictionary<string,byte[]> Build(){
    if(Seconds<30||Seconds>1800)throw new InvalidDataException("超时必须在 30—1800 秒之间。");
@@ -132,16 +149,16 @@ namespace WorldApartAI
     var pr=prows.Select(Json.Dict).FirstOrDefault(r=>Convert.ToInt32(r["npcId"])==pair.Key);
     if(pr==null){pr=new Dictionary<string,object>{{"npcId",pair.Key}};prows.Add(pr);}pr["speakStyle"]=pair.Value;
    }
-   p["upsert"]=prows;var m=Json.Copy(manifest);m["title"]="AI 编辑器设置（超时 "+Seconds+" 秒）";m["version"]="0.4.3";
+   p["upsert"]=prows;var m=Json.Copy(manifest);m["title"]="AI 编辑器设置（超时 "+Seconds+" 秒）";m["version"]="0.4.4";
    var output=new Dictionary<string,byte[]>{{Files[0],Utf8.GetBytes(Json.Write(m))},{Files[1],Utf8.GetBytes(Json.Write(c))}};
    BuildExtra(p,output);return output;
   }
   static void CheckClosed(bool gameRunning){if(gameRunning)throw new InvalidOperationException("请先完整退出《不问凡尘》，再保存或禁用。当前草稿已保留。");}
   void CheckConflict(){foreach(string f in Files)if(Fingerprint(f)!=fingerprints[f])throw new IOException("其他工具已修改补丁。请先保留草稿文本，然后关闭并重新打开编辑器。文件未被覆盖。");}
-  string Backup(Dictionary<string,byte[]> originals,byte[] prefs){
+  string Backup(Dictionary<string,byte[]> originals,byte[] prefs,byte[] disabled){
    string folder=PathFor("editor-backups/"+DateTime.Now.ToString("yyyyMMdd-HHmmss-fff")+"-"+Guid.NewGuid().ToString("N").Substring(0,6));Directory.CreateDirectory(folder);
    foreach(var pair in originals)if(pair.Value!=null){string path=Path.Combine(folder,pair.Key);Directory.CreateDirectory(Path.GetDirectoryName(path));File.WriteAllBytes(path,pair.Value);}
-   File.WriteAllText(Path.Combine(folder,"transaction.json"),Json.Write(new{PrefsExisted=prefs!=null,PrefsBase64=prefs==null?null:Convert.ToBase64String(prefs),FilesExisted=originals.ToDictionary(k=>k.Key,v=>v.Value!=null)}),Utf8);return folder;
+   File.WriteAllText(Path.Combine(folder,"transaction.json"),Json.Write(new{PrefsExisted=prefs!=null,PrefsBase64=prefs==null?null:Convert.ToBase64String(prefs),DisabledPackagesExisted=disabled!=null,DisabledPackagesBase64=disabled==null?null:Convert.ToBase64String(disabled),FilesExisted=originals.ToDictionary(k=>k.Key,v=>v.Value!=null)}),Utf8);return folder;
   }
   static void AtomicWrite(string path,byte[] bytes){
    Directory.CreateDirectory(Path.GetDirectoryName(path));string temp=path+"."+Guid.NewGuid().ToString("N")+".tmp";
@@ -149,20 +166,23 @@ namespace WorldApartAI
   }
   public void Save(bool gameRunning){
    CheckClosed(gameRunning);CheckConflict();var output=Build();var original=Files.ToDictionary(f=>f,f=>File.Exists(PathFor(f))?File.ReadAllBytes(PathFor(f)):null);
-   byte[] prefs=Prefs.Read();LastBackup=Backup(original,prefs);var touched=new List<string>();bool prefsAttempted=false;
+   byte[] prefs=Prefs.Read(),disabled=Prefs.ReadDisabledPackages(),unblocked=UnblockPackage(disabled);LastBackup=Backup(original,prefs,disabled);var touched=new List<string>();bool prefsAttempted=false,disabledAttempted=false;
    try{
     foreach(var file in output){AtomicWrite(PathFor(file.Key),file.Value);touched.Add(file.Key);}
-    prefsAttempted=true;Prefs.Write(EnableBytes(prefs,true));if(!IsEnabled())throw new IOException("无法确认 Mod 启用记录。");
+    prefsAttempted=true;Prefs.Write(EnableBytes(prefs,true));
+    if(!Object.ReferenceEquals(disabled,unblocked)){disabledAttempted=true;Prefs.WriteDisabledPackages(unblocked);}
+    if(!IsEnabled())throw new IOException("无法确认 Mod 启用记录。");
    }catch(Exception error){
     var failures=new List<string>();
     foreach(var file in touched)try{if(original[file]==null)File.Delete(PathFor(file));else AtomicWrite(PathFor(file),original[file]);}catch(Exception ex){failures.Add(ex.Message);}
     if(prefsAttempted)try{Prefs.Write(prefs);}catch(Exception ex){failures.Add(ex.Message);}
+    if(disabledAttempted)try{Prefs.WriteDisabledPackages(disabled);}catch(Exception ex){failures.Add(ex.Message);}
     throw new IOException(error.Message+(failures.Count==0?"\n已回滚本次更改。":"\n回滚未完全成功，请使用备份恢复："+LastBackup+"\n"+String.Join("\n",failures)),error);
    }
    Reload();
   }
   public void Disable(bool gameRunning){
-   CheckClosed(gameRunning);byte[] prefs=Prefs.Read();LastBackup=Backup(new Dictionary<string,byte[]>(),prefs);
+   CheckClosed(gameRunning);byte[] prefs=Prefs.Read(),disabled=Prefs.ReadDisabledPackages();LastBackup=Backup(new Dictionary<string,byte[]>(),prefs,disabled);
    try{Prefs.Write(EnableBytes(prefs,false));if(IsEnabled())throw new IOException("禁用校验失败。");}catch{Prefs.Write(prefs);throw;}
   }
  }
