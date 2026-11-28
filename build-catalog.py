@@ -52,6 +52,12 @@ if (catalog['MetadataHash'] == 'bec4e275b3c4e3a2abf2e71d45027962f847ceea3c9acf9f
     # Audited older field identities and template variables remain valid.
     # Import permission does not enable saving against an older game install.
     catalog['ImportVersions'] = dict(verified_versions)
+if (catalog['MetadataHash'] == 'b816365475bb69cb7d34c8d97f47968163fa32bc3b45d08b42629b3b25481644'
+        and catalog['Version'] == '0.59.7546613'
+        and reference_hash == 'a47f2e94880930b4f50dd31bc8cf8fbed0a9a37892e6931831f540fa3330a76a'):
+    # 0.59 retains the previous editable field identities and template variables.
+    catalog['ImportVersions'] = dict(verified_versions)
+    catalog['ImportVersions']['bec4e275b3c4e3a2abf2e71d45027962f847ceea3c9acf9f9395ce72f3a24d45'] = '0.55.7502726'
 if out.exists():
     previous = json.loads(out.read_text('utf-8'))
     if previous.get('Npcs') == catalog['Npcs'] and previous.get('Prompts') == catalog['Prompts']:
